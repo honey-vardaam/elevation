@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ProjectRole;
+use App\Enums\ProjectStatus;
 use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -24,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $site_area
  * @property Carbon|null $start_date
  * @property Carbon|null $end_date
+ * @property ProjectStatus $status
  * @property int $owner_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -42,6 +44,7 @@ use Illuminate\Support\Carbon;
     'site_area',
     'start_date',
     'end_date',
+    'status',
 ])]
 class Project extends Model
 {
@@ -68,6 +71,7 @@ class Project extends Model
         return [
             'start_date' => 'date',
             'end_date' => 'date',
+            'status' => ProjectStatus::class,
         ];
     }
 

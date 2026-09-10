@@ -1,5 +1,7 @@
 export type ProjectRole = 'owner' | 'manager' | 'editor' | 'viewer';
 
+export type ProjectStatus = 'ongoing' | 'on_hold' | 'completed';
+
 export type ProjectAbilities = {
     update: boolean;
     delete: boolean;
@@ -54,6 +56,7 @@ type ProjectDetailFields = {
     site_area: string | null;
     start_date: string | null;
     end_date: string | null;
+    status: ProjectStatus;
     owner: {
         id: number;
         name: string;

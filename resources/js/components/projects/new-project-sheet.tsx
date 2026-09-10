@@ -5,6 +5,7 @@ import {
     MemberPicker,
     type MemberSelection,
 } from '@/components/projects/member-picker';
+import { ProjectStatusSelect } from '@/components/projects/project-status-select';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -22,12 +23,13 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { store } from '@/routes/projects';
-import type { AssignableUser } from '@/types';
+import type { AssignableUser, ProjectStatus } from '@/types';
 
 type FormData = {
     name: string;
     description: string;
     banner: File | null;
+    status: ProjectStatus;
     client_name: string;
     client_email: string;
     client_phone: string;
@@ -43,6 +45,7 @@ const initialData: FormData = {
     name: '',
     description: '',
     banner: null,
+    status: 'ongoing',
     client_name: '',
     client_email: '',
     client_phone: '',
@@ -150,6 +153,17 @@ export function NewProjectSheet({
                             }
                         />
                         <InputError message={errors.description} />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="status">Status</Label>
+                        <ProjectStatusSelect
+                            value={data.status}
+                            onValueChange={(status) =>
+                                setData('status', status)
+                            }
+                        />
+                        <InputError message={errors.status} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

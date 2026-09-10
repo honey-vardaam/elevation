@@ -203,6 +203,7 @@ class ProjectController extends Controller
             'site_area' => $project->site_area,
             'start_date' => $project->start_date?->toDateString(),
             'end_date' => $project->end_date?->toDateString(),
+            'status' => $project->status->value,
             'owner' => ['id' => $project->owner->id, 'name' => $project->owner->name],
             'role' => $project->roleValueFor($user),
             'can' => $project->abilitiesFor($user),

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\ProjectRole;
+use App\Enums\ProjectStatus;
 use App\Enums\UserRole;
 use App\Models\Project;
 use App\Models\ProjectMember;
@@ -46,6 +47,7 @@ class DatabaseSeeder extends Seeder
                 'site_area' => '3,200 sq ft',
                 'start_date' => now()->subMonths(2)->toDateString(),
                 'end_date' => now()->addMonths(10)->toDateString(),
+                'status' => ProjectStatus::Ongoing,
             ],
         );
 
@@ -60,6 +62,23 @@ class DatabaseSeeder extends Seeder
                 'site_address' => '400 Cedar Ridge Parkway',
                 'site_area' => '48,000 sq ft',
                 'start_date' => now()->subMonth()->toDateString(),
+                'status' => ProjectStatus::OnHold,
+            ],
+        );
+
+        $this->seedProject(
+            name: 'Maple Grove Library Renovation',
+            owner: $owner,
+            staff: $staff,
+            attributes: [
+                'description' => 'A full interior renovation and accessibility upgrade for the neighborhood branch library.',
+                'client_name' => 'Maple Grove Public Library District',
+                'client_email' => 'facilities@maplegrovelibrary.example.org',
+                'site_address' => '210 Maple Grove Blvd',
+                'site_area' => '9,500 sq ft',
+                'start_date' => now()->subYear()->toDateString(),
+                'end_date' => now()->subMonth()->toDateString(),
+                'status' => ProjectStatus::Completed,
             ],
         );
     }

@@ -2,7 +2,9 @@
 
 namespace App\Concerns;
 
+use App\Enums\ProjectStatus;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Validation\Rule;
 
 trait ProjectValidationRules
 {
@@ -24,6 +26,7 @@ trait ProjectValidationRules
             'site_area' => ['nullable', 'string', 'max:255'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'status' => ['nullable', Rule::enum(ProjectStatus::class)],
         ];
     }
 }
