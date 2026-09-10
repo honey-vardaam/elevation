@@ -1,10 +1,9 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2 } from 'lucide-react';
+import { BookOpen, FolderGit2, LayoutGrid, Settings2 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
-import { SearchForm } from '@/components/search-form';
 import {
     Sidebar,
     SidebarContent,
@@ -16,12 +15,26 @@ import {
     SidebarRail,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { edit as editAppearance } from '@/routes/appearance';
+import { edit as editProfile } from '@/routes/profile';
+import { edit as editSecurity } from '@/routes/security';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
+        icon: LayoutGrid,
+    },
+    {
+        title: 'Settings',
+        href: editProfile(),
+        icon: Settings2,
+        items: [
+            { title: 'Profile', href: editProfile() },
+            { title: 'Security', href: editSecurity() },
+            { title: 'Appearance', href: editAppearance() },
+        ],
     },
 ];
 
@@ -40,7 +53,7 @@ const footerNavItems: NavItem[] = [
 
 export function AppSidebar() {
     return (
-        <Sidebar>
+        <Sidebar collapsible="icon">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -51,7 +64,6 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
-                <SearchForm />
             </SidebarHeader>
 
             <SidebarContent>
