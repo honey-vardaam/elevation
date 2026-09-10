@@ -57,6 +57,11 @@ class User extends Authenticatable implements PasskeyUser
         return $this->hasMany(Project::class, 'owner_id');
     }
 
+    public function calendarEvents(): HasMany
+    {
+        return $this->hasMany(CalendarEvent::class);
+    }
+
     public function isOwner(): bool
     {
         return $this->role === UserRole::Owner;
