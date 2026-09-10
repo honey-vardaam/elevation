@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ProjectRole;
 use App\Enums\ProjectStatus;
+use App\Enums\ProjectType;
 use Database\Factories\ProjectFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -22,10 +23,13 @@ use Illuminate\Support\Carbon;
  * @property string|null $client_email
  * @property string|null $client_phone
  * @property string|null $site_address
- * @property string|null $site_area
+ * @property float|null $site_area
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property Carbon|null $start_date
  * @property Carbon|null $end_date
  * @property ProjectStatus $status
+ * @property ProjectType|null $type
  * @property int $owner_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -45,6 +49,9 @@ use Illuminate\Support\Carbon;
     'start_date',
     'end_date',
     'status',
+    'type',
+    'latitude',
+    'longitude',
 ])]
 class Project extends Model
 {
@@ -72,6 +79,10 @@ class Project extends Model
             'start_date' => 'date',
             'end_date' => 'date',
             'status' => ProjectStatus::class,
+            'type' => ProjectType::class,
+            'site_area' => 'float',
+            'latitude' => 'float',
+            'longitude' => 'float',
         ];
     }
 

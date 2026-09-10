@@ -1,11 +1,13 @@
 import { useForm } from '@inertiajs/react';
 import { type ChangeEvent, type FormEvent, useState } from 'react';
 import InputError from '@/components/input-error';
+import { LocationPicker } from '@/components/projects/location-picker';
 import {
     MemberPicker,
     type MemberSelection,
 } from '@/components/projects/member-picker';
 import { ProjectStatusSelect } from '@/components/projects/project-status-select';
+import { ProjectTypeSelect } from '@/components/projects/project-type-select';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -23,18 +25,21 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { store } from '@/routes/projects';
-import type { AssignableUser, ProjectStatus } from '@/types';
+import type { AssignableUser, ProjectStatus, ProjectType } from '@/types';
 
 type FormData = {
     name: string;
     description: string;
     banner: File | null;
     status: ProjectStatus;
+    type: ProjectType | 'none';
     client_name: string;
     client_email: string;
     client_phone: string;
     site_address: string;
     site_area: string;
+    latitude: number | null;
+    longitude: number | null;
     start_date: string;
     end_date: string;
     use_default_folders: boolean;
@@ -46,11 +51,14 @@ const initialData: FormData = {
     description: '',
     banner: null,
     status: 'ongoing',
+    type: 'none',
     client_name: '',
     client_email: '',
     client_phone: '',
     site_address: '',
     site_area: '',
+    latitude: null,
+    longitude: null,
     start_date: '',
     end_date: '',
     use_default_folders: true,
@@ -64,7 +72,7 @@ export function NewProjectSheet({
 }) {
     const [open, setOpen] = useState(false);
     const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-    const { data, setData, post, processing, errors, reset } =
+    const { data, setData, post, processing, errors, reset, transform } =
         useForm<FormData>(initialData);
 
     function handleBannerChange(event: ChangeEvent<HTMLInputElement>) {
@@ -83,6 +91,11 @@ export function NewProjectSheet({
 
     function handleSubmit(event: FormEvent) {
         event.preventDefault();
+
+        transform((formData) => ({
+            ...formData,
+            type: formData.type === 'none' ? '' : formData.type,
+        }));
 
         post(store().url, {
             forceFormData: true,
@@ -155,15 +168,27 @@ export function NewProjectSheet({
                         <InputError message={errors.description} />
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="status">Status</Label>
-                        <ProjectStatusSelect
-                            value={data.status}
-                            onValueChange={(status) =>
-                                setData('status', status)
-                            }
-                        />
-                        <InputError message={errors.status} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="status">Status</Label>
+                            <ProjectStatusSelect
+                                value={data.status}
+                                onValueChange={(status) =>
+                                    setData('status', status)
+                                }
+                            />
+                            <InputError message={errors.status} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="type">Type (optional)</Label>
+                            <ProjectTypeSelect
+                                value={data.type}
+                                onValueChange={(type) =>
+                                    setData('type', type)
+                                }
+                            />
+                            <InputError message={errors.type} />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -236,15 +261,38 @@ export function NewProjectSheet({
                             }
                         />
                         <InputError message={errors.site_address} />
-                        <Input
-                            aria-label="Site area"
-                            placeholder="Site area (e.g. 5,000 sq ft)"
-                            value={data.site_area}
-                            onChange={(e) =>
-                                setData('site_area', e.target.value)
-                            }
-                        />
+                        <div className="relative">
+                            <Input
+                                aria-label="Site area"
+                                type="number"
+                                min="0"
+                                step="any"
+                                placeholder="Site area"
+                                className="pr-14"
+                                value={data.site_area}
+                                onChange={(e) =>
+                                    setData('site_area', e.target.value)
+                                }
+                            />
+                            <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                                sq ft
+                            </span>
+                        </div>
                         <InputError message={errors.site_area} />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label>Pin location (optional)</Label>
+                        <LocationPicker
+                            latitude={data.latitude}
+                            longitude={data.longitude}
+                            onChange={(latitude, longitude) => {
+                                setData('latitude', latitude);
+                                setData('longitude', longitude);
+                            }}
+                        />
+                        <InputError message={errors.latitude} />
+                        <InputError message={errors.longitude} />
                     </div>
 
                     <div className="grid gap-2">

@@ -1,11 +1,13 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    Building2,
     CalendarDays,
     Contact,
     FolderGit2,
     FolderKanban,
     LayoutGrid,
+    LayoutTemplate,
     Settings2,
     Users,
 } from 'lucide-react';
@@ -27,6 +29,8 @@ import { dashboard } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { index as calendarIndex } from '@/routes/calendar';
 import { index as clientsIndex } from '@/routes/clients';
+import { edit as editCompany } from '@/routes/company';
+import { index as portfoliosIndex } from '@/routes/portfolios';
 import { edit as editProfile } from '@/routes/profile';
 import { index as projectsIndex } from '@/routes/projects';
 import { edit as editSecurity } from '@/routes/security';
@@ -61,6 +65,16 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
                       title: 'Team',
                       href: usersIndex(),
                       icon: Users,
+                  },
+                  {
+                      title: 'Company',
+                      href: editCompany(),
+                      icon: Building2,
+                  },
+                  {
+                      title: 'Portfolio',
+                      href: portfoliosIndex(),
+                      icon: LayoutTemplate,
                   },
               ]
             : []),

@@ -1,7 +1,9 @@
 export type * from './auth';
 export type * from './calendar';
 export type * from './clients';
+export type * from './company';
 export type * from './navigation';
+export type * from './portfolio';
 export type * from './projects';
 export type * from './ui';
 export type * from './users';

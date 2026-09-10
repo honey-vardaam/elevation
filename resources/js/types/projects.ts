@@ -2,6 +2,17 @@ export type ProjectRole = 'owner' | 'manager' | 'editor' | 'viewer';
 
 export type ProjectStatus = 'ongoing' | 'on_hold' | 'completed';
 
+export type ProjectType =
+    | 'residential'
+    | 'commercial'
+    | 'institutional'
+    | 'industrial'
+    | 'renovation'
+    | 'interior'
+    | 'landscape'
+    | 'mixed_use'
+    | 'other';
+
 export type ProjectAbilities = {
     update: boolean;
     delete: boolean;
@@ -53,10 +64,13 @@ type ProjectDetailFields = {
     client_email: string | null;
     client_phone: string | null;
     site_address: string | null;
-    site_area: string | null;
+    site_area: number | null;
+    latitude: number | null;
+    longitude: number | null;
     start_date: string | null;
     end_date: string | null;
     status: ProjectStatus;
+    type: ProjectType | null;
     owner: {
         id: number;
         name: string;

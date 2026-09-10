@@ -1,7 +1,7 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { FolderKanban, MoreHorizontal } from 'lucide-react';
-import InputError from '@/components/input-error';
+import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { NewProjectSheet } from '@/components/projects/new-project-sheet';
 import {
     PROJECT_STATUSES,
@@ -29,8 +29,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { destroy, index, show, update } from '@/routes/projects';
@@ -45,7 +43,7 @@ export default function Index({
     can: { create: boolean };
     assignableUsers: AssignableUser[];
 }) {
-    const [renaming, setRenaming] = useState<ProjectSummary | null>(null);
+    const [editing, setEditing] = useState<ProjectSummary | null>(null);
     const [deleting, setDeleting] = useState<ProjectSummary | null>(null);
 
     function handleStatusChange(project: ProjectSummary, status: ProjectStatus) {
@@ -95,9 +93,9 @@ export default function Index({
                             <DropdownMenuContent align="end">
                                 {project.can.update && (
                                     <DropdownMenuItem
-                                        onSelect={() => setRenaming(project)}
+                                        onSelect={() => setEditing(project)}
                                     >
-                                        Rename
+                                        Edit
                                     </DropdownMenuItem>
                                 )}
                                 {project.can.delete && (
@@ -222,69 +220,10 @@ export default function Index({
                 )}
             </div>
 
-            <Dialog
-                open={renaming !== null}
-                onOpenChange={(open) => !open && setRenaming(null)}
-            >
-                <DialogContent>
-                    <DialogTitle>Rename project</DialogTitle>
-                    {renaming && (
-                        <Form
-                            {...update.form(renaming.id)}
-                            method="patch"
-                            onSuccess={() => setRenaming(null)}
-                            className="space-y-4"
-                        >
-                            {({ processing, errors }) => (
-                                <>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="rename-project-name">
-                                            Name
-                                        </Label>
-                                        <Input
-                                            id="rename-project-name"
-                                            name="name"
-                                            defaultValue={renaming.name}
-                                            autoFocus
-                                            required
-                                        />
-                                        <InputError message={errors.name} />
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="rename-project-description">
-                                            Description
-                                        </Label>
-                                        <Input
-                                            id="rename-project-description"
-                                            name="description"
-                                            defaultValue={
-                                                renaming.description ?? ''
-                                            }
-                                        />
-                                        <InputError
-                                            message={errors.description}
-                                        />
-                                    </div>
-                                    <DialogFooter>
-                                        <DialogClose asChild>
-                                            <Button variant="secondary">
-                                                Cancel
-                                            </Button>
-                                        </DialogClose>
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            {processing && <Spinner />}
-                                            Save
-                                        </Button>
-                                    </DialogFooter>
-                                </>
-                            )}
-                        </Form>
-                    )}
-                </DialogContent>
-            </Dialog>
+            <EditProjectDialog
+                project={editing}
+                onOpenChange={(open) => !open && setEditing(null)}
+            />
 
             <Dialog
                 open={deleting !== null}
