@@ -32,9 +32,9 @@ class ProjectCrudTest extends TestCase
         $response->assertDontSee($inaccessible->name);
     }
 
-    public function test_authenticated_user_can_create_a_project()
+    public function test_owner_can_create_a_project()
     {
-        $user = User::factory()->create();
+        $user = User::factory()->owner()->create();
 
         $response = $this->actingAs($user)->post(route('projects.store'), [
             'name' => 'New Headquarters',

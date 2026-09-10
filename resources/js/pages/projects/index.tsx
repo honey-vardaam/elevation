@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { FolderKanban, MoreHorizontal } from 'lucide-react';
 import InputError from '@/components/input-error';
+import { NewProjectSheet } from '@/components/projects/new-project-sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +18,6 @@ import {
     DialogContent,
     DialogFooter,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import {
     DropdownMenu,
@@ -28,11 +28,18 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { destroy, index, show, store, update } from '@/routes/projects';
-import type { ProjectSummary } from '@/types';
+import { destroy, index, show, update } from '@/routes/projects';
+import type { AssignableUser, ProjectSummary } from '@/types';
 
-export default function Index({ projects }: { projects: ProjectSummary[] }) {
-    const [newProjectOpen, setNewProjectOpen] = useState(false);
+export default function Index({
+    projects,
+    can,
+    assignableUsers,
+}: {
+    projects: ProjectSummary[];
+    can: { create: boolean };
+    assignableUsers: AssignableUser[];
+}) {
     const [renaming, setRenaming] = useState<ProjectSummary | null>(null);
     const [deleting, setDeleting] = useState<ProjectSummary | null>(null);
 
@@ -46,67 +53,9 @@ export default function Index({ projects }: { projects: ProjectSummary[] }) {
                         Projects you own or have been given access to.
                     </p>
 
-                    <Dialog
-                        open={newProjectOpen}
-                        onOpenChange={setNewProjectOpen}
-                    >
-                        <DialogTrigger asChild>
-                            <Button>New Project</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogTitle>New project</DialogTitle>
-
-                            <Form
-                                {...store.form()}
-                                onSuccess={() => setNewProjectOpen(false)}
-                                resetOnSuccess
-                                className="space-y-4"
-                            >
-                                {({ processing, errors }) => (
-                                    <>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="project-name">
-                                                Name
-                                            </Label>
-                                            <Input
-                                                id="project-name"
-                                                name="name"
-                                                autoFocus
-                                                required
-                                            />
-                                            <InputError message={errors.name} />
-                                        </div>
-                                        <div className="grid gap-2">
-                                            <Label htmlFor="project-description">
-                                                Description
-                                            </Label>
-                                            <Input
-                                                id="project-description"
-                                                name="description"
-                                            />
-                                            <InputError
-                                                message={errors.description}
-                                            />
-                                        </div>
-                                        <DialogFooter>
-                                            <DialogClose asChild>
-                                                <Button variant="secondary">
-                                                    Cancel
-                                                </Button>
-                                            </DialogClose>
-                                            <Button
-                                                type="submit"
-                                                disabled={processing}
-                                            >
-                                                {processing && <Spinner />}
-                                                Create project
-                                            </Button>
-                                        </DialogFooter>
-                                    </>
-                                )}
-                            </Form>
-                        </DialogContent>
-                    </Dialog>
+                    {can.create && (
+                        <NewProjectSheet assignableUsers={assignableUsers} />
+                    )}
                 </div>
 
                 {projects.length === 0 ? (
@@ -119,7 +68,14 @@ export default function Index({ projects }: { projects: ProjectSummary[] }) {
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {projects.map((project) => (
-                            <Card key={project.id}>
+                            <Card key={project.id} className="overflow-hidden pt-0">
+                                {project.banner_url && (
+                                    <img
+                                        src={project.banner_url}
+                                        alt=""
+                                        className="h-32 w-full object-cover"
+                                    />
+                                )}
                                 <CardHeader className="flex flex-row items-start justify-between gap-2">
                                     <div className="min-w-0">
                                         <CardTitle className="truncate">

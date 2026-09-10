@@ -102,6 +102,14 @@ export default function Show({
             <Head title={project.name} />
 
             <div className="flex flex-1 flex-col gap-6 p-4">
+                {project.banner_url && (
+                    <img
+                        src={project.banner_url}
+                        alt=""
+                        className="h-48 w-full rounded-xl object-cover"
+                    />
+                )}
+
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h1 className="font-heading text-2xl font-semibold tracking-tight">
@@ -111,6 +119,36 @@ export default function Show({
                             <p className="text-muted-foreground text-sm">
                                 {project.description}
                             </p>
+                        )}
+                        {(project.client_name ||
+                            project.site_address ||
+                            project.start_date) && (
+                            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                                {project.client_name && (
+                                    <span>Client: {project.client_name}</span>
+                                )}
+                                {project.site_address && (
+                                    <>
+                                        {project.client_name && (
+                                            <span>&middot;</span>
+                                        )}
+                                        <span>{project.site_address}</span>
+                                    </>
+                                )}
+                                {project.start_date && (
+                                    <>
+                                        {(project.client_name ||
+                                            project.site_address) && (
+                                            <span>&middot;</span>
+                                        )}
+                                        <span>
+                                            {project.start_date}
+                                            {project.end_date &&
+                                                ` – ${project.end_date}`}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
                         )}
                     </div>
 

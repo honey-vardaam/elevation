@@ -6,6 +6,7 @@ use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
 use App\Models\Project;
 use App\Models\ProjectFile;
+use App\Models\ProjectMember;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class ProjectController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $canCreate = Gate::allows('create', Project::class);
 
         $projects = Project::query()
             ->where('owner_id', $user->id)
@@ -28,27 +30,42 @@ class ProjectController extends Controller
             ->latest()
             ->get()
             ->map(fn (Project $project) => [
-                'id' => $project->id,
-                'name' => $project->name,
-                'description' => $project->description,
-                'owner' => ['id' => $project->owner->id, 'name' => $project->owner->name],
-                'role' => $project->roleValueFor($user),
+                ...$this->projectSummary($project, $user),
                 'members_count' => $project->members_count,
                 'folders_count' => $project->folders_count,
                 'files_count' => $project->files_count,
-                'can' => $project->abilitiesFor($user),
             ]);
 
         return Inertia::render('projects/index', [
             'projects' => $projects,
+            'can' => ['create' => $canCreate],
+            'assignableUsers' => $canCreate
+                ? User::query()->orderBy('name')->get(['id', 'name', 'email'])
+                : [],
         ]);
     }
 
     public function store(StoreProjectRequest $request): RedirectResponse
     {
-        $project = new Project($request->validated());
+        $project = new Project($request->safe()->except(['banner', 'use_default_folders', 'members']));
         $project->owner_id = $request->user()->id;
         $project->save();
+
+        if ($request->hasFile('banner')) {
+            $project->banner_path = $request->file('banner')->store('projects/banners', 'public');
+            $project->save();
+        }
+
+        foreach ($request->validated('members', []) as $member) {
+            $projectMember = new ProjectMember(['role' => $member['role']]);
+            $projectMember->project_id = $project->id;
+            $projectMember->user_id = $member['user_id'];
+            $projectMember->save();
+        }
+
+        if ($request->boolean('use_default_folders')) {
+            $project->seedDefaultFolders($request->user());
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Project created.')]);
 
@@ -113,12 +130,7 @@ class ProjectController extends Controller
 
         return Inertia::render('projects/show', [
             'project' => [
-                'id' => $project->id,
-                'name' => $project->name,
-                'description' => $project->description,
-                'owner' => ['id' => $project->owner->id, 'name' => $project->owner->name],
-                'role' => $project->roleValueFor($user),
-                'can' => $project->abilitiesFor($user),
+                ...$this->projectSummary($project, $user),
                 'members' => $project->members()
                     ->with('user:id,name,email')
                     ->get()
@@ -138,7 +150,17 @@ class ProjectController extends Controller
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
-        $project->fill($request->validated())->save();
+        $project->fill($request->safe()->except('banner'));
+
+        if ($request->hasFile('banner')) {
+            if ($project->banner_path) {
+                Storage::disk('public')->delete($project->banner_path);
+            }
+
+            $project->banner_path = $request->file('banner')->store('projects/banners', 'public');
+        }
+
+        $project->save();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Project updated.')]);
 
@@ -153,11 +175,38 @@ class ProjectController extends Controller
             Storage::disk($file->disk)->delete($file->path);
         }
 
+        if ($project->banner_path) {
+            Storage::disk('public')->delete($project->banner_path);
+        }
+
         $project->delete();
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Project deleted.')]);
 
         return to_route('projects.index');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function projectSummary(Project $project, User $user): array
+    {
+        return [
+            'id' => $project->id,
+            'name' => $project->name,
+            'description' => $project->description,
+            'banner_url' => $project->banner_path ? Storage::disk('public')->url($project->banner_path) : null,
+            'client_name' => $project->client_name,
+            'client_email' => $project->client_email,
+            'client_phone' => $project->client_phone,
+            'site_address' => $project->site_address,
+            'site_area' => $project->site_area,
+            'start_date' => $project->start_date?->toDateString(),
+            'end_date' => $project->end_date?->toDateString(),
+            'owner' => ['id' => $project->owner->id, 'name' => $project->owner->name],
+            'role' => $project->roleValueFor($user),
+            'can' => $project->abilitiesFor($user),
+        ];
     }
 
     /**

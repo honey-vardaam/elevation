@@ -1,10 +1,11 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
     FolderGit2,
     FolderKanban,
     LayoutGrid,
     Settings2,
+    Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -25,30 +26,42 @@ import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
 import { index as projectsIndex } from '@/routes/projects';
 import { edit as editSecurity } from '@/routes/security';
+import { index as usersIndex } from '@/routes/users';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Projects',
-        href: projectsIndex(),
-        icon: FolderKanban,
-    },
-    {
-        title: 'Settings',
-        href: editProfile(),
-        icon: Settings2,
-        items: [
-            { title: 'Profile', href: editProfile() },
-            { title: 'Security', href: editSecurity() },
-            { title: 'Appearance', href: editAppearance() },
-        ],
-    },
-];
+function buildMainNavItems(isOwner: boolean): NavItem[] {
+    return [
+        {
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        },
+        {
+            title: 'Projects',
+            href: projectsIndex(),
+            icon: FolderKanban,
+        },
+        ...(isOwner
+            ? [
+                  {
+                      title: 'Team',
+                      href: usersIndex(),
+                      icon: Users,
+                  },
+              ]
+            : []),
+        {
+            title: 'Settings',
+            href: editProfile(),
+            icon: Settings2,
+            items: [
+                { title: 'Profile', href: editProfile() },
+                { title: 'Security', href: editSecurity() },
+                { title: 'Appearance', href: editAppearance() },
+            ],
+        },
+    ];
+}
 
 const footerNavItems: NavItem[] = [
     {
@@ -64,6 +77,9 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage().props;
+    const mainNavItems = buildMainNavItems(auth.user.role === 'owner');
+
     return (
         <Sidebar collapsible="icon">
             <SidebarHeader>

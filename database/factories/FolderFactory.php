@@ -22,7 +22,7 @@ class FolderFactory extends Factory
         return [
             'project_id' => Project::factory(),
             'parent_id' => null,
-            'name' => fake()->randomElement(['Site Specification', '3D Rendering', 'Plan', 'Elevation']),
+            'name' => fake()->randomElement(Project::DEFAULT_FOLDER_NAMES),
             'created_by' => User::factory(),
         ];
     }

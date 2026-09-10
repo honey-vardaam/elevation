@@ -16,6 +16,14 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $name
  * @property string|null $description
+ * @property string|null $banner_path
+ * @property string|null $client_name
+ * @property string|null $client_email
+ * @property string|null $client_phone
+ * @property string|null $site_address
+ * @property string|null $site_area
+ * @property Carbon|null $start_date
+ * @property Carbon|null $end_date
  * @property int $owner_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -24,11 +32,44 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Folder> $folders
  * @property-read Collection<int, ProjectFile> $files
  */
-#[Fillable(['name', 'description'])]
+#[Fillable([
+    'name',
+    'description',
+    'client_name',
+    'client_email',
+    'client_phone',
+    'site_address',
+    'site_area',
+    'start_date',
+    'end_date',
+])]
 class Project extends Model
 {
     /** @use HasFactory<ProjectFactory> */
     use HasFactory;
+
+    /**
+     * The default folder structure offered when creating a project.
+     *
+     * @var array<int, string>
+     */
+    public const array DEFAULT_FOLDER_NAMES = [
+        'Site Specification',
+        '3D Rendering',
+        'Plan',
+        'Elevation',
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'start_date' => 'date',
+            'end_date' => 'date',
+        ];
+    }
 
     public function owner(): BelongsTo
     {
@@ -48,6 +89,20 @@ class Project extends Model
     public function files(): HasMany
     {
         return $this->hasMany(ProjectFile::class);
+    }
+
+    /**
+     * Create the standard set of root-level folders for this project.
+     */
+    public function seedDefaultFolders(User $creator): void
+    {
+        foreach (self::DEFAULT_FOLDER_NAMES as $name) {
+            $folder = new Folder(['name' => $name]);
+            $folder->project_id = $this->id;
+            $folder->parent_id = null;
+            $folder->created_by = $creator->id;
+            $folder->save();
+        }
     }
 
     /**
