@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    Contact,
     FolderGit2,
     FolderKanban,
     LayoutGrid,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
+import { index as clientsIndex } from '@/routes/clients';
 import { edit as editProfile } from '@/routes/profile';
 import { index as projectsIndex } from '@/routes/projects';
 import { edit as editSecurity } from '@/routes/security';
@@ -43,6 +45,11 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
         },
         ...(isOwner
             ? [
+                  {
+                      title: 'Clients',
+                      href: clientsIndex(),
+                      icon: Contact,
+                  },
                   {
                       title: 'Team',
                       href: usersIndex(),
