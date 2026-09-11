@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Contact, MoreHorizontal } from 'lucide-react';
 import { EditClientDialog } from '@/components/clients/edit-client-dialog';
 import { NewClientDialog } from '@/components/clients/new-client-dialog';
+import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -37,7 +38,7 @@ export default function Index({ clients }: { clients: ClientSummary[] }) {
         <>
             <Head title="Clients" />
 
-            <div className="flex flex-1 flex-col gap-6 p-4">
+            <div className="flex flex-1 flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <p className="text-muted-foreground text-sm">
                         Your firm's regular clients.
@@ -46,13 +47,10 @@ export default function Index({ clients }: { clients: ClientSummary[] }) {
                 </div>
 
                 {clients.length === 0 ? (
-                    <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-12 text-center">
-                        <Contact className="text-muted-foreground size-8" />
-                        <p className="text-muted-foreground text-sm">
-                            No clients yet. Add one to keep their details on
-                            hand.
-                        </p>
-                    </div>
+                    <EmptyState
+                        icon={Contact}
+                        message="No clients yet. Add one to keep their details on hand."
+                    />
                 ) : (
                     <Table>
                         <TableHeader>

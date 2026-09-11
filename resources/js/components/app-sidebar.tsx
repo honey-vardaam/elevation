@@ -1,18 +1,15 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BookOpen,
-    Building2,
     CalendarDays,
     Contact,
-    FolderGit2,
     FolderKanban,
+    Inbox,
     LayoutGrid,
     LayoutTemplate,
     Settings2,
     Users,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -30,6 +27,8 @@ import { edit as editAppearance } from '@/routes/appearance';
 import { index as calendarIndex } from '@/routes/calendar';
 import { index as clientsIndex } from '@/routes/clients';
 import { edit as editCompany } from '@/routes/company';
+import { index as inboxIndex } from '@/routes/inbox';
+import { index as phaseTemplatesIndex } from '@/routes/phase-templates';
 import { index as portfoliosIndex } from '@/routes/portfolios';
 import { edit as editProfile } from '@/routes/profile';
 import { index as projectsIndex } from '@/routes/projects';
@@ -54,6 +53,11 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
             href: calendarIndex(),
             icon: CalendarDays,
         },
+        {
+            title: 'Inbox',
+            href: inboxIndex(),
+            icon: Inbox,
+        },
         ...(isOwner
             ? [
                   {
@@ -65,11 +69,6 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
                       title: 'Team',
                       href: usersIndex(),
                       icon: Users,
-                  },
-                  {
-                      title: 'Company',
-                      href: editCompany(),
-                      icon: Building2,
                   },
                   {
                       title: 'Portfolio',
@@ -86,23 +85,22 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
                 { title: 'Profile', href: editProfile() },
                 { title: 'Security', href: editSecurity() },
                 { title: 'Appearance', href: editAppearance() },
+                ...(isOwner
+                    ? [
+                          {
+                              title: 'Company',
+                              href: editCompany(),
+                          },
+                          {
+                              title: 'Phase Templates',
+                              href: phaseTemplatesIndex(),
+                          },
+                      ]
+                    : []),
             ],
         },
     ];
 }
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
 
 export function AppSidebar() {
     const { auth } = usePage().props;
@@ -127,7 +125,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
                 <NavUser />
             </SidebarFooter>
             <SidebarRail />

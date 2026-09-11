@@ -1,8 +1,11 @@
 import { Form, Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Folder as FolderIcon, MoreHorizontal, Download } from 'lucide-react';
+import { FileDropZone } from '@/components/projects/file-drop-zone';
 import { FolderBreadcrumb } from '@/components/projects/folder-breadcrumb';
 import { NewFolderDialog } from '@/components/projects/new-folder-dialog';
+import { PhaseCollaborationPanel } from '@/components/projects/phase-collaboration-panel';
+import { ProjectPhases } from '@/components/projects/project-phases';
 import { RenameMoveDialog } from '@/components/projects/rename-move-dialog';
 import { ShareProjectDialog } from '@/components/projects/share-project-dialog';
 import { UploadFileDialog } from '@/components/projects/upload-file-dialog';
@@ -36,9 +39,12 @@ import { index, show } from '@/routes/projects';
 import { destroy as destroyFile, download } from '@/routes/projects/files';
 import { destroy as destroyFolder } from '@/routes/projects/folders';
 import type {
+    PhaseActivitySummary,
     ProjectDetail,
     ProjectFileSummary,
     ProjectFolderSummary,
+    ProjectPhaseSummary,
+    TaggableMember,
 } from '@/types';
 
 type EditingItem = {
@@ -67,6 +73,11 @@ export default function Show({
     breadcrumbTrail,
     folders,
     files,
+    phases,
+    availablePhaseTemplates,
+    activePhaseId,
+    activities,
+    taggableMembers,
 }: {
     project: ProjectDetail;
     view: 'folder' | 'list';
@@ -74,20 +85,73 @@ export default function Show({
     breadcrumbTrail: ProjectFolderSummary[];
     folders: ProjectFolderSummary[];
     files: ProjectFileSummary[];
+    phases: ProjectPhaseSummary[];
+    availablePhaseTemplates: { id: number; name: string }[];
+    activePhaseId: number | null;
+    activities: PhaseActivitySummary[];
+    taggableMembers: TaggableMember[];
 }) {
     const [editing, setEditing] = useState<EditingItem | null>(null);
     const [deleting, setDeleting] = useState<EditingItem | null>(null);
 
     const currentFolderId = currentFolder?.id ?? null;
+    const activePhaseIndex = phases.findIndex((p) => p.id === activePhaseId);
+    const activePhase =
+        activePhaseIndex === -1 ? null : phases[activePhaseIndex];
+    const nextPhaseName =
+        activePhaseIndex === -1
+            ? null
+            : (phases[activePhaseIndex + 1]?.name ?? null);
+
+    /**
+     * Builds the show() URL, defaulting every dimension (view, folder,
+     * open collaboration panel) to its current value unless explicitly
+     * overridden - so switching views, navigating folders, or opening/
+     * closing the panel never accidentally drops one of the others.
+     */
+    function buildShowUrl(
+        overrides: {
+            view?: 'folder' | 'list';
+            folder?: number | null;
+            panel?: number | null;
+        } = {},
+    ): string {
+        const nextView = overrides.view ?? view;
+        const nextFolder =
+            'folder' in overrides ? overrides.folder : currentFolderId;
+        const nextPanel =
+            'panel' in overrides ? overrides.panel : activePhaseId;
+
+        const params = new URLSearchParams();
+        params.set('view', nextView);
+        if (nextView === 'folder' && nextFolder) {
+            params.set('folder', String(nextFolder));
+        }
+        if (nextPanel) {
+            params.set('panel', String(nextPanel));
+        }
+
+        return `${show(project.id).url}?${params.toString()}`;
+    }
 
     function switchView(nextView: 'folder' | 'list') {
         router.get(
-            show(project.id).url,
-            nextView === 'folder' && currentFolderId
-                ? { view: nextView, folder: currentFolderId }
-                : { view: nextView },
+            buildShowUrl({ view: nextView }),
+            {},
             { preserveScroll: true },
         );
+    }
+
+    function openPhasePanel(phaseId: number) {
+        router.get(
+            buildShowUrl({ panel: phaseId }),
+            {},
+            { preserveScroll: true },
+        );
+    }
+
+    function closePhasePanel() {
+        router.get(buildShowUrl({ panel: null }), {}, { preserveScroll: true });
     }
 
     const deleteFormProps =
@@ -101,123 +165,237 @@ export default function Show({
         <>
             <Head title={project.name} />
 
-            <div className="flex flex-1 flex-col gap-6 p-4">
-                {project.banner_url && (
-                    <img
-                        src={project.banner_url}
-                        alt=""
-                        className="h-48 w-full rounded-xl object-cover"
-                    />
-                )}
-
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <h1 className="font-heading text-2xl font-semibold tracking-tight">
-                            {project.name}
-                        </h1>
-                        {project.description && (
-                            <p className="text-muted-foreground text-sm">
-                                {project.description}
-                            </p>
-                        )}
-                        {(project.client_name ||
-                            project.site_address ||
-                            project.start_date) && (
-                            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                                {project.client_name && (
-                                    <span>Client: {project.client_name}</span>
-                                )}
-                                {project.site_address && (
-                                    <>
-                                        {project.client_name && (
-                                            <span>&middot;</span>
-                                        )}
-                                        <span>{project.site_address}</span>
-                                    </>
-                                )}
-                                {project.start_date && (
-                                    <>
-                                        {(project.client_name ||
-                                            project.site_address) && (
-                                            <span>&middot;</span>
-                                        )}
-                                        <span>
-                                            {project.start_date}
-                                            {project.end_date &&
-                                                ` – ${project.end_date}`}
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <ShareProjectDialog
-                            projectId={project.id}
-                            members={project.members}
-                            canManage={project.can.manageMembers}
+            <div className="flex min-w-0 flex-1">
+                <div className="flex flex-1 flex-col gap-4 p-4">
+                    {project.banner_url && (
+                        <img
+                            src={project.banner_url}
+                            alt=""
+                            className="h-48 w-full rounded-xl object-cover"
                         />
-                        {project.can.createFolders && (
-                            <NewFolderDialog
+                    )}
+
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h1 className="font-heading text-2xl font-semibold tracking-tight">
+                                {project.name}
+                            </h1>
+                            {project.description && (
+                                <p className="text-muted-foreground text-sm">
+                                    {project.description}
+                                </p>
+                            )}
+                            {(project.client_name ||
+                                project.site_address ||
+                                project.start_date) && (
+                                <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                                    {project.client_name && (
+                                        <span>
+                                            Client: {project.client_name}
+                                        </span>
+                                    )}
+                                    {project.site_address && (
+                                        <>
+                                            {project.client_name && (
+                                                <span>&middot;</span>
+                                            )}
+                                            <span>{project.site_address}</span>
+                                        </>
+                                    )}
+                                    {project.start_date && (
+                                        <>
+                                            {(project.client_name ||
+                                                project.site_address) && (
+                                                <span>&middot;</span>
+                                            )}
+                                            <span>
+                                                {project.start_date}
+                                                {project.end_date &&
+                                                    ` – ${project.end_date}`}
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <ShareProjectDialog
                                 projectId={project.id}
-                                parentId={currentFolderId}
+                                members={project.members}
+                                canManage={project.can.manageMembers}
                             />
-                        )}
-                        {project.can.uploadFiles && (
-                            <UploadFileDialog
-                                projectId={project.id}
-                                folderId={currentFolderId}
-                            />
-                        )}
+                            {project.can.createFolders && (
+                                <NewFolderDialog
+                                    projectId={project.id}
+                                    parentId={currentFolderId}
+                                />
+                            )}
+                            {project.can.uploadFiles && (
+                                <UploadFileDialog
+                                    projectId={project.id}
+                                    folderId={currentFolderId}
+                                />
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                <Tabs
-                    value={view}
-                    onValueChange={(v) => switchView(v as 'folder' | 'list')}
-                >
-                    <TabsList>
-                        <TabsTrigger value="folder">Folder view</TabsTrigger>
-                        <TabsTrigger value="list">List view</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-
-                {view === 'folder' && (
-                    <FolderBreadcrumb
+                    <ProjectPhases
                         projectId={project.id}
-                        trail={breadcrumbTrail}
+                        phases={phases}
+                        availablePhaseTemplates={availablePhaseTemplates}
+                        canManage={project.can.managePhases}
+                        activePhaseId={activePhaseId}
+                        onOpenPhase={openPhasePanel}
                     />
-                )}
 
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Name</TableHead>
-                            {view === 'list' && <TableHead>Folder</TableHead>}
-                            <TableHead>Size</TableHead>
-                            <TableHead>Uploaded by</TableHead>
-                            <TableHead className="w-10" />
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {view === 'folder' &&
-                            folders.map((folder) => (
-                                <TableRow key={`folder-${folder.id}`}>
-                                    <TableCell colSpan={1}>
-                                        <Link
-                                            href={`${show(project.id).url}?view=folder&folder=${folder.id}`}
-                                            className="flex items-center gap-2 font-medium hover:underline"
-                                        >
-                                            <FolderIcon className="text-muted-foreground size-4" />
-                                            {folder.name}
-                                        </Link>
-                                    </TableCell>
-                                    <TableCell />
-                                    <TableCell />
-                                    <TableCell>
-                                        {(project.can.editItems ||
-                                            project.can.deleteItems) && (
+                    <Tabs
+                        value={view}
+                        onValueChange={(v) =>
+                            switchView(v as 'folder' | 'list')
+                        }
+                    >
+                        <TabsList>
+                            <TabsTrigger value="folder">
+                                Folder view
+                            </TabsTrigger>
+                            <TabsTrigger value="list">List view</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+
+                    {view === 'folder' && (
+                        <FolderBreadcrumb
+                            projectId={project.id}
+                            trail={breadcrumbTrail}
+                            activePhaseId={activePhaseId}
+                        />
+                    )}
+
+                    <FileDropZone
+                        projectId={project.id}
+                        folderId={currentFolderId}
+                        disabled={!project.can.uploadFiles}
+                    >
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    {view === 'list' && (
+                                        <TableHead>Folder</TableHead>
+                                    )}
+                                    <TableHead>Size</TableHead>
+                                    <TableHead>Uploaded by</TableHead>
+                                    <TableHead className="w-10" />
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {view === 'folder' &&
+                                    folders.map((folder) => (
+                                        <TableRow key={`folder-${folder.id}`}>
+                                            <TableCell colSpan={1}>
+                                                <Link
+                                                    href={buildShowUrl({
+                                                        view: 'folder',
+                                                        folder: folder.id,
+                                                    })}
+                                                    className="flex items-center gap-2 font-medium hover:underline"
+                                                >
+                                                    <FolderIcon className="text-muted-foreground size-4" />
+                                                    {folder.name}
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell />
+                                            <TableCell />
+                                            <TableCell>
+                                                {(project.can.editItems ||
+                                                    project.can
+                                                        .deleteItems) && (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger
+                                                            asChild
+                                                        >
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon-sm"
+                                                            >
+                                                                <MoreHorizontal className="size-4" />
+                                                                <span className="sr-only">
+                                                                    Folder
+                                                                    actions
+                                                                </span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            {project.can
+                                                                .editItems && (
+                                                                <DropdownMenuItem
+                                                                    onSelect={() =>
+                                                                        setEditing(
+                                                                            {
+                                                                                kind: 'folder',
+                                                                                id: folder.id,
+                                                                                name: folder.name,
+                                                                                folderId:
+                                                                                    currentFolderId,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Rename /
+                                                                    Move
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            {project.can
+                                                                .deleteItems && (
+                                                                <DropdownMenuItem
+                                                                    variant="destructive"
+                                                                    onSelect={() =>
+                                                                        setDeleting(
+                                                                            {
+                                                                                kind: 'folder',
+                                                                                id: folder.id,
+                                                                                name: folder.name,
+                                                                                folderId:
+                                                                                    currentFolderId,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+
+                                {files.map((file) => (
+                                    <TableRow key={`file-${file.id}`}>
+                                        <TableCell className="font-medium">
+                                            {file.name}
+                                        </TableCell>
+                                        {view === 'list' && (
+                                            <TableCell>
+                                                {file.folder ? (
+                                                    <Badge variant="outline">
+                                                        {file.folder.name}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-muted-foreground">
+                                                        Root
+                                                    </span>
+                                                )}
+                                            </TableCell>
+                                        )}
+                                        <TableCell className="text-muted-foreground">
+                                            {formatBytes(file.size)}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {file.uploaded_by.name}
+                                        </TableCell>
+                                        <TableCell>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button
@@ -226,37 +404,52 @@ export default function Show({
                                                     >
                                                         <MoreHorizontal className="size-4" />
                                                         <span className="sr-only">
-                                                            Folder actions
+                                                            File actions
                                                         </span>
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    {project.can.editItems && (
+                                                    <DropdownMenuItem asChild>
+                                                        <a
+                                                            href={
+                                                                download([
+                                                                    project.id,
+                                                                    file.id,
+                                                                ]).url
+                                                            }
+                                                        >
+                                                            <Download className="size-4" />
+                                                            Download
+                                                        </a>
+                                                    </DropdownMenuItem>
+                                                    {file.can.edit && (
                                                         <DropdownMenuItem
                                                             onSelect={() =>
                                                                 setEditing({
-                                                                    kind: 'folder',
-                                                                    id: folder.id,
-                                                                    name: folder.name,
+                                                                    kind: 'file',
+                                                                    id: file.id,
+                                                                    name: file.name,
                                                                     folderId:
-                                                                        currentFolderId,
+                                                                        file
+                                                                            .folder
+                                                                            ?.id ??
+                                                                        null,
                                                                 })
                                                             }
                                                         >
                                                             Rename / Move
                                                         </DropdownMenuItem>
                                                     )}
-                                                    {project.can
-                                                        .deleteItems && (
+                                                    {file.can.delete && (
                                                         <DropdownMenuItem
                                                             variant="destructive"
                                                             onSelect={() =>
                                                                 setDeleting({
-                                                                    kind: 'folder',
-                                                                    id: folder.id,
-                                                                    name: folder.name,
+                                                                    kind: 'file',
+                                                                    id: file.id,
+                                                                    name: file.name,
                                                                     folderId:
-                                                                        currentFolderId,
+                                                                        null,
                                                                 })
                                                             }
                                                         >
@@ -265,125 +458,47 @@ export default function Show({
                                                     )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
 
-                        {files.map((file) => (
-                            <TableRow key={`file-${file.id}`}>
-                                <TableCell className="font-medium">
-                                    {file.name}
-                                </TableCell>
-                                {view === 'list' && (
-                                    <TableCell>
-                                        {file.folder ? (
-                                            <Badge variant="outline">
-                                                {file.folder.name}
-                                            </Badge>
-                                        ) : (
-                                            <span className="text-muted-foreground">
-                                                Root
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                )}
-                                <TableCell className="text-muted-foreground">
-                                    {formatBytes(file.size)}
-                                </TableCell>
-                                <TableCell className="text-muted-foreground">
-                                    {file.uploaded_by.name}
-                                </TableCell>
-                                <TableCell>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
+                                {view === 'folder' &&
+                                    folders.length === 0 &&
+                                    files.length === 0 && (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={4}
+                                                className="text-muted-foreground text-center"
                                             >
-                                                <MoreHorizontal className="size-4" />
-                                                <span className="sr-only">
-                                                    File actions
-                                                </span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem asChild>
-                                                <a
-                                                    href={
-                                                        download([
-                                                            project.id,
-                                                            file.id,
-                                                        ]).url
-                                                    }
-                                                >
-                                                    <Download className="size-4" />
-                                                    Download
-                                                </a>
-                                            </DropdownMenuItem>
-                                            {file.can.edit && (
-                                                <DropdownMenuItem
-                                                    onSelect={() =>
-                                                        setEditing({
-                                                            kind: 'file',
-                                                            id: file.id,
-                                                            name: file.name,
-                                                            folderId:
-                                                                file.folder
-                                                                    ?.id ??
-                                                                null,
-                                                        })
-                                                    }
-                                                >
-                                                    Rename / Move
-                                                </DropdownMenuItem>
-                                            )}
-                                            {file.can.delete && (
-                                                <DropdownMenuItem
-                                                    variant="destructive"
-                                                    onSelect={() =>
-                                                        setDeleting({
-                                                            kind: 'file',
-                                                            id: file.id,
-                                                            name: file.name,
-                                                            folderId: null,
-                                                        })
-                                                    }
-                                                >
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                                                This folder is empty.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
 
-                        {view === 'folder' &&
-                            folders.length === 0 &&
-                            files.length === 0 && (
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={4}
-                                        className="text-muted-foreground text-center"
-                                    >
-                                        This folder is empty.
-                                    </TableCell>
-                                </TableRow>
-                            )}
+                                {view === 'list' && files.length === 0 && (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={5}
+                                            className="text-muted-foreground text-center"
+                                        >
+                                            No files in this project yet.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </FileDropZone>
+                </div>
 
-                        {view === 'list' && files.length === 0 && (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={5}
-                                    className="text-muted-foreground text-center"
-                                >
-                                    No files in this project yet.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                <PhaseCollaborationPanel
+                    projectId={project.id}
+                    phase={activePhase}
+                    activities={activities}
+                    canManage={project.can.managePhases}
+                    nextPhaseName={nextPhaseName}
+                    projectMembers={taggableMembers}
+                    onClose={closePhasePanel}
+                />
             </div>
 
             {editing && (

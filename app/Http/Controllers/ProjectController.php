@@ -4,10 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
+use App\Models\PhaseActivity;
+use App\Models\PhaseTemplate;
 use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectMember;
+use App\Models\ProjectPhase;
 use App\Models\User;
+use App\Support\PhaseActivityPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -42,12 +46,13 @@ class ProjectController extends Controller
             'assignableUsers' => $canCreate
                 ? User::query()->orderBy('name')->get(['id', 'name', 'email'])
                 : [],
+            'hasPhaseTemplates' => PhaseTemplate::query()->exists(),
         ]);
     }
 
     public function store(StoreProjectRequest $request): RedirectResponse
     {
-        $project = new Project($request->safe()->except(['banner', 'use_default_folders', 'members']));
+        $project = new Project($request->safe()->except(['banner', 'use_default_folders', 'apply_phase_pipeline', 'members']));
         $project->owner_id = $request->user()->id;
         $project->save();
 
@@ -65,6 +70,10 @@ class ProjectController extends Controller
 
         if ($request->boolean('use_default_folders')) {
             $project->seedDefaultFolders($request->user());
+        }
+
+        if ($request->boolean('apply_phase_pipeline')) {
+            $project->seedPhasesFromTemplates();
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Project created.')]);
@@ -128,23 +137,66 @@ class ProjectController extends Controller
             $folders = $childFolders;
         }
 
+        $canManagePhases = $project->isManagedBy($user);
+
+        $phaseModels = $project->phases()->get();
+
+        $phases = $phaseModels->map(fn (ProjectPhase $phase) => [
+            'id' => $phase->id,
+            'name' => $phase->name,
+            'status' => $phase->status->value,
+            'start_date' => $phase->start_date?->toDateString(),
+            'end_date' => $phase->end_date?->toDateString(),
+            'notes' => $phase->notes,
+            'phase_template_id' => $phase->phase_template_id,
+            'open_change_requests_count' => $phase->openChangeRequestsCount(),
+        ]);
+
+        $availablePhaseTemplates = $canManagePhases
+            ? PhaseTemplate::query()
+                ->orderBy('sort_order')
+                ->get()
+                ->reject(fn (PhaseTemplate $template) => $phases->contains('phase_template_id', $template->id))
+                ->values()
+                ->map(fn (PhaseTemplate $template) => ['id' => $template->id, 'name' => $template->name])
+            : [];
+
+        $activePhaseId = $request->query('panel') ? (int) $request->query('panel') : null;
+        $activePhase = $activePhaseId !== null ? $phaseModels->firstWhere('id', $activePhaseId) : null;
+
+        $activities = $activePhase !== null
+            ? $activePhase->activities()
+                ->with(['author:id,name', 'reviewer:id,name', 'replies.author:id,name', 'attachment:id,name,size', 'resolvedBy:id,name'])
+                ->get()
+                ->map(fn (PhaseActivity $activity) => PhaseActivityPresenter::toArray($activity, $project))
+            : [];
+
+        $members = $project->members()->with('user:id,name,email')->get();
+
+        $taggableMembers = collect([['id' => $project->owner->id, 'name' => $project->owner->name]])
+            ->merge($members->map(fn ($member) => ['id' => $member->user->id, 'name' => $member->user->name]))
+            ->unique('id')
+            ->values();
+
         return Inertia::render('projects/show', [
             'project' => [
                 ...$this->projectSummary($project, $user),
-                'members' => $project->members()
-                    ->with('user:id,name,email')
-                    ->get()
-                    ->map(fn ($member) => [
-                        'id' => $member->id,
-                        'role' => $member->role->value,
-                        'user' => ['id' => $member->user->id, 'name' => $member->user->name, 'email' => $member->user->email],
-                    ]),
+                'members' => $members->map(fn ($member) => [
+                    'id' => $member->id,
+                    'role' => $member->role->value,
+                    'user' => ['id' => $member->user->id, 'name' => $member->user->name, 'email' => $member->user->email],
+                ]),
             ],
             'view' => $view,
             'currentFolder' => $currentFolder ? ['id' => $currentFolder->id, 'name' => $currentFolder->name] : null,
             'breadcrumbTrail' => $breadcrumbTrail,
             'folders' => $folders,
             'files' => $files,
+            'phases' => $phases,
+            'availablePhaseTemplates' => $availablePhaseTemplates,
+            'activePhaseId' => $activePhase?->id,
+            'activities' => $activities,
+            'taggableMembers' => $taggableMembers,
         ]);
     }
 

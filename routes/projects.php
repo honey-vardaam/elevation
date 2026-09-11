@@ -2,8 +2,10 @@
 
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\Projects\FolderController;
+use App\Http\Controllers\Projects\PhaseActivityController;
 use App\Http\Controllers\Projects\ProjectFileController;
 use App\Http\Controllers\Projects\ProjectMemberController;
+use App\Http\Controllers\Projects\ProjectPhaseController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -22,5 +24,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('members', [ProjectMemberController::class, 'store'])->name('members.store');
         Route::patch('members/{member}', [ProjectMemberController::class, 'update'])->name('members.update');
         Route::delete('members/{member}', [ProjectMemberController::class, 'destroy'])->name('members.destroy');
+
+        Route::post('phases', [ProjectPhaseController::class, 'store'])->name('phases.store');
+        Route::post('phases/reorder', [ProjectPhaseController::class, 'reorder'])->name('phases.reorder');
+        Route::patch('phases/{phase}', [ProjectPhaseController::class, 'update'])->name('phases.update');
+        Route::delete('phases/{phase}', [ProjectPhaseController::class, 'destroy'])->name('phases.destroy');
+        Route::post('phases/{phase}/advance', [ProjectPhaseController::class, 'advance'])->name('phases.advance');
+
+        Route::post('phases/{phase}/activities', [PhaseActivityController::class, 'store'])->name('phases.activities.store');
+        Route::patch('phases/{phase}/activities/{activity}/resolve', [PhaseActivityController::class, 'resolve'])->name('phases.activities.resolve');
+        Route::patch('phases/{phase}/activities/{activity}/decide', [PhaseActivityController::class, 'decide'])->name('phases.activities.decide');
+        Route::post('phases/{phase}/activities/{activity}/resubmit', [PhaseActivityController::class, 'resubmit'])->name('phases.activities.resubmit');
     });
 });

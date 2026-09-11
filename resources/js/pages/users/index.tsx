@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { MoreHorizontal, Users as UsersIcon } from 'lucide-react';
 import { EditUserDialog } from '@/components/users/edit-user-dialog';
 import { NewUserDialog } from '@/components/users/new-user-dialog';
+import { EmptyState } from '@/components/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,21 +39,16 @@ export default function Index({ users }: { users: UserSummary[] }) {
         <>
             <Head title="Team" />
 
-            <div className="flex flex-1 flex-col gap-6 p-4">
+            <div className="flex flex-1 flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                         Everyone with access to Elevation.
                     </p>
                     <NewUserDialog />
                 </div>
 
                 {users.length === 0 ? (
-                    <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-12 text-center">
-                        <UsersIcon className="size-8 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">
-                            No users yet.
-                        </p>
-                    </div>
+                    <EmptyState icon={UsersIcon} message="No users yet." />
                 ) : (
                     <Table>
                         <TableHeader>
@@ -133,9 +129,9 @@ export default function Index({ users }: { users: UserSummary[] }) {
             >
                 <DialogContent>
                     <DialogTitle>Delete user?</DialogTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-muted-foreground text-sm">
                         This permanently removes{' '}
-                        <span className="font-medium text-foreground">
+                        <span className="text-foreground font-medium">
                             {deleting?.name}
                         </span>
                         's account and their access to every project. This

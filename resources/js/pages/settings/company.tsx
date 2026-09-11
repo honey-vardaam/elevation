@@ -12,7 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { edit, update } from '@/routes/company';
 import type { CompanyProfile } from '@/types';
 
-export default function Edit({ company }: { company: CompanyProfile }) {
+export default function CompanySettings({
+    company,
+}: {
+    company: CompanyProfile;
+}) {
     const [logoPreview, setLogoPreview] = useState<string | null>(
         company.logo_url,
     );
@@ -34,7 +38,7 @@ export default function Edit({ company }: { company: CompanyProfile }) {
         <>
             <Head title="Company" />
 
-            <div className="max-w-xl space-y-6 p-4">
+            <div className="space-y-6">
                 <Heading
                     variant="small"
                     title="Company profile"
@@ -149,6 +153,6 @@ export default function Edit({ company }: { company: CompanyProfile }) {
     );
 }
 
-Edit.layout = {
+CompanySettings.layout = {
     breadcrumbs: [{ title: 'Company', href: edit() }],
 };

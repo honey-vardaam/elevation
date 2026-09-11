@@ -1,15 +1,10 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
-import { Copy, ImageIcon, LayoutTemplate } from 'lucide-react';
+import { ChevronRight, FolderOpen, LayoutTemplate } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
 import InputError from '@/components/input-error';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import {
     Dialog,
     DialogClose,
@@ -40,7 +35,7 @@ export default function Index({
         <>
             <Head title="Portfolio" />
 
-            <div className="flex flex-1 flex-col gap-6 p-4">
+            <div className="flex flex-1 flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <p className="text-muted-foreground text-sm">
                         Year-wise portfolios of your firm's work.
@@ -49,97 +44,18 @@ export default function Index({
                 </div>
 
                 {portfolios.length === 0 ? (
-                    <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-12 text-center">
-                        <LayoutTemplate className="text-muted-foreground size-8" />
-                        <p className="text-muted-foreground text-sm">
-                            No portfolios yet. Create one to get started.
-                        </p>
-                    </div>
+                    <EmptyState
+                        icon={LayoutTemplate}
+                        message="No portfolios yet. Create one to get started."
+                    />
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {portfolios.map((portfolio) => (
-                            <Card
+                        {portfolios.map((portfolio, i) => (
+                            <PortfolioCard
                                 key={portfolio.id}
-                                className="overflow-hidden pt-0"
-                            >
-                                {portfolio.hero_url ? (
-                                    <img
-                                        src={portfolio.hero_url}
-                                        alt=""
-                                        className="h-32 w-full object-cover"
-                                    />
-                                ) : (
-                                    <div className="bg-muted flex h-32 w-full items-center justify-center">
-                                        <ImageIcon className="text-muted-foreground size-8" />
-                                    </div>
-                                )}
-                                <CardHeader>
-                                    <div className="flex items-center justify-between">
-                                        <CardTitle>
-                                            <Link
-                                                href={show(portfolio.id)}
-                                                className="hover:underline"
-                                            >
-                                                {portfolio.title ??
-                                                    `${portfolio.year} Portfolio`}
-                                            </Link>
-                                        </CardTitle>
-                                        <Badge
-                                            variant={
-                                                portfolio.is_published
-                                                    ? 'default'
-                                                    : 'secondary'
-                                            }
-                                        >
-                                            {portfolio.is_published
-                                                ? 'Published'
-                                                : 'Draft'}
-                                        </Badge>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="flex flex-col gap-3">
-                                    <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                                        <span>
-                                            {portfolio.completed_count}{' '}
-                                            completed
-                                        </span>
-                                        <span>&middot;</span>
-                                        <span>
-                                            {portfolio.photos_count} photos
-                                        </span>
-                                        <span>&middot;</span>
-                                        <span>
-                                            {portfolio.testimonials_count}{' '}
-                                            testimonials
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            asChild
-                                        >
-                                            <Link href={show(portfolio.id)}>
-                                                Edit
-                                            </Link>
-                                        </Button>
-                                        {portfolio.share_url && (
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                    navigator.clipboard.writeText(
-                                                        portfolio.share_url!,
-                                                    )
-                                                }
-                                            >
-                                                <Copy className="size-4" />
-                                                Copy link
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
+                                portfolio={portfolio}
+                                index={i}
+                            />
                         ))}
                     </div>
                 )}
@@ -148,11 +64,55 @@ export default function Index({
     );
 }
 
-function NewPortfolioDialog({
-    availableYears,
+const PANEL_GRADIENTS = [
+    'from-rose-200 via-fuchsia-100 to-orange-100 dark:from-rose-500/15 dark:via-fuchsia-500/10 dark:to-orange-400/10',
+    'from-sky-200 via-indigo-100 to-violet-100 dark:from-sky-500/15 dark:via-indigo-500/10 dark:to-violet-400/10',
+    'from-amber-100 via-rose-100 to-purple-100 dark:from-amber-400/15 dark:via-rose-500/10 dark:to-purple-400/10',
+    'from-teal-100 via-sky-100 to-indigo-100 dark:from-teal-400/15 dark:via-sky-500/10 dark:to-indigo-400/10',
+];
+
+function PortfolioCard({
+    portfolio,
+    index,
 }: {
-    availableYears: number[];
+    portfolio: PortfolioSummary;
+    index: number;
 }) {
+    const gradient = PANEL_GRADIENTS[index % PANEL_GRADIENTS.length];
+
+    return (
+        <Card className="group overflow-hidden p-0">
+            <Link href={show(portfolio.id)} className="block">
+                <div
+                    className={`flex h-36 flex-col justify-between bg-gradient-to-br p-4 ${gradient}`}
+                >
+                    <div className="bg-foreground text-background flex size-8 items-center justify-center rounded-full">
+                        <FolderOpen className="size-4" />
+                    </div>
+                    <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+                        Portfolio
+                    </p>
+                </div>
+
+                <div className="relative px-5 pt-4 pb-5">
+                    <h3 className="truncate pr-10 text-base font-semibold">
+                        {portfolio.title ?? 'Untitled portfolio'}
+                    </h3>
+                    <p className="text-muted-foreground mt-1 truncate pr-10 text-xs">
+                        {portfolio.year} &middot; {portfolio.completed_count}{' '}
+                        completed &middot; {portfolio.photos_count} photos
+                    </p>
+
+                    <span className="bg-muted text-foreground group-hover:bg-chart-2 absolute right-5 bottom-5 flex size-8 items-center justify-center rounded-full transition-colors duration-300 ease-out group-hover:text-white">
+                        <ChevronRight className="size-4" />
+                    </span>
+                </div>
+            </Link>
+        </Card>
+    );
+}
+
+function NewPortfolioDialog({ availableYears }: { availableYears: number[] }) {
     const [open, setOpen] = useState(false);
     const [year, setYear] = useState<string>(
         availableYears[0] ? String(availableYears[0]) : '',
@@ -194,9 +154,7 @@ function NewPortfolioDialog({
                             </div>
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button variant="secondary">
-                                        Cancel
-                                    </Button>
+                                    <Button variant="secondary">Cancel</Button>
                                 </DialogClose>
                                 <Button
                                     type="submit"

@@ -43,6 +43,7 @@ type FormData = {
     start_date: string;
     end_date: string;
     use_default_folders: boolean;
+    apply_phase_pipeline: boolean;
     members: MemberSelection[];
 };
 
@@ -62,13 +63,16 @@ const initialData: FormData = {
     start_date: '',
     end_date: '',
     use_default_folders: true,
+    apply_phase_pipeline: true,
     members: [],
 };
 
 export function NewProjectSheet({
     assignableUsers,
+    hasPhaseTemplates,
 }: {
     assignableUsers: AssignableUser[];
+    hasPhaseTemplates: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const [bannerPreview, setBannerPreview] = useState<string | null>(null);
@@ -183,9 +187,7 @@ export function NewProjectSheet({
                             <Label htmlFor="type">Type (optional)</Label>
                             <ProjectTypeSelect
                                 value={data.type}
-                                onValueChange={(type) =>
-                                    setData('type', type)
-                                }
+                                onValueChange={(type) => setData('type', type)}
                             />
                             <InputError message={errors.type} />
                         </div>
@@ -300,9 +302,7 @@ export function NewProjectSheet({
                         <MemberPicker
                             users={assignableUsers}
                             value={data.members}
-                            onChange={(members) =>
-                                setData('members', members)
-                            }
+                            onChange={(members) => setData('members', members)}
                         />
                     </div>
 
@@ -311,16 +311,31 @@ export function NewProjectSheet({
                             id="use_default_folders"
                             checked={data.use_default_folders}
                             onCheckedChange={(checked) =>
-                                setData(
-                                    'use_default_folders',
-                                    checked === true,
-                                )
+                                setData('use_default_folders', checked === true)
                             }
                         />
                         <Label htmlFor="use_default_folders">
                             Use default folder structure
                         </Label>
                     </div>
+
+                    {hasPhaseTemplates && (
+                        <div className="flex items-center gap-3">
+                            <Checkbox
+                                id="apply_phase_pipeline"
+                                checked={data.apply_phase_pipeline}
+                                onCheckedChange={(checked) =>
+                                    setData(
+                                        'apply_phase_pipeline',
+                                        checked === true,
+                                    )
+                                }
+                            />
+                            <Label htmlFor="apply_phase_pipeline">
+                                Apply organization's phase pipeline
+                            </Label>
+                        </div>
+                    )}
                 </form>
 
                 <SheetFooter className="flex-row justify-end gap-2">

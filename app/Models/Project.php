@@ -37,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, ProjectMember> $members
  * @property-read Collection<int, Folder> $folders
  * @property-read Collection<int, ProjectFile> $files
+ * @property-read Collection<int, ProjectPhase> $phases
  */
 #[Fillable([
     'name',
@@ -106,6 +107,11 @@ class Project extends Model
         return $this->hasMany(ProjectFile::class);
     }
 
+    public function phases(): HasMany
+    {
+        return $this->hasMany(ProjectPhase::class)->orderBy('sort_order');
+    }
+
     /**
      * Create the standard set of root-level folders for this project.
      */
@@ -117,6 +123,22 @@ class Project extends Model
             $folder->parent_id = null;
             $folder->created_by = $creator->id;
             $folder->save();
+        }
+    }
+
+    /**
+     * Copy the firm's current phase pipeline onto this project as its own
+     * trackable phases - later edits to the templates don't retroactively
+     * change projects that already adopted the pipeline.
+     */
+    public function seedPhasesFromTemplates(): void
+    {
+        foreach (PhaseTemplate::orderBy('sort_order')->get() as $index => $template) {
+            $phase = new ProjectPhase(['name' => $template->name]);
+            $phase->project_id = $this->id;
+            $phase->phase_template_id = $template->id;
+            $phase->sort_order = $index;
+            $phase->save();
         }
     }
 
@@ -180,6 +202,7 @@ class Project extends Model
             'createFolders' => $this->isEditableBy($user),
             'editItems' => $this->isEditableBy($user),
             'deleteItems' => $this->isManagedBy($user),
+            'managePhases' => $this->isManagedBy($user),
         ];
     }
 }

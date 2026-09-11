@@ -9,12 +9,7 @@ import { SiteMap } from '@/components/portfolio/site-map';
 import { StatsStrip } from '@/components/portfolio/stats-strip';
 import { TestimonialManager } from '@/components/portfolio/testimonial-manager';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Dialog,
     DialogClose,
@@ -63,7 +58,7 @@ export default function Show({
         <>
             <Head title={portfolio.title ?? `${portfolio.year} Portfolio`} />
 
-            <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4">
+            <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     {portfolio.is_published ? (
                         <Button variant="outline" size="sm" asChild>
@@ -90,19 +85,15 @@ export default function Show({
                         <DialogContent>
                             <DialogTitle>Delete this portfolio?</DialogTitle>
                             <p className="text-muted-foreground text-sm">
-                                This permanently removes the{' '}
-                                {portfolio.year} portfolio, its gallery, and
-                                its testimonials. This cannot be undone.
+                                This permanently removes the {portfolio.year}{' '}
+                                portfolio, its gallery, and its testimonials.
+                                This cannot be undone.
                             </p>
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button variant="secondary">
-                                        Cancel
-                                    </Button>
+                                    <Button variant="secondary">Cancel</Button>
                                 </DialogClose>
-                                <Form
-                                    {...destroy.form(portfolio.id)}
-                                >
+                                <Form {...destroy.form(portfolio.id)}>
                                     {({ processing }) => (
                                         <Button
                                             type="submit"
@@ -146,8 +137,8 @@ export default function Show({
                     <CardHeader>
                         <CardTitle>Sections</CardTitle>
                         <p className="text-muted-foreground text-sm">
-                            Show, hide, and reorder what appears on the
-                            public page. Add your own text sections too.
+                            Show, hide, and reorder what appears on the public
+                            page. Add your own text sections too.
                         </p>
                     </CardHeader>
                     <CardContent>
@@ -162,8 +153,8 @@ export default function Show({
                     <CardHeader>
                         <CardTitle>Stats & Map</CardTitle>
                         <p className="text-muted-foreground text-sm">
-                            Computed automatically from your projects -
-                            nothing to edit here.
+                            Computed automatically from your projects - nothing
+                            to edit here.
                         </p>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -237,7 +228,10 @@ Show.layout = (page: unknown) => {
     // page props (to probe whether it returns an element), then with the
     // actual child element to render - handle both so neither call throws.
     const props = page as
-        | { portfolio?: PortfolioDetail; props?: { portfolio?: PortfolioDetail } }
+        | {
+              portfolio?: PortfolioDetail;
+              props?: { portfolio?: PortfolioDetail };
+          }
         | undefined;
     const portfolio = props?.props?.portfolio ?? props?.portfolio;
 
@@ -248,7 +242,9 @@ Show.layout = (page: unknown) => {
                     ? [
                           { title: 'Portfolio', href: index() },
                           {
-                              title: portfolio.title ?? `${portfolio.year} Portfolio`,
+                              title:
+                                  portfolio.title ??
+                                  `${portfolio.year} Portfolio`,
                               href: show(portfolio.id),
                           },
                       ]

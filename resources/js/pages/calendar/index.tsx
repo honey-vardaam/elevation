@@ -86,7 +86,7 @@ export default function Index({
         <>
             <Head title="Calendar" />
 
-            <div className="flex flex-1 flex-col gap-6 p-4">
+            <div className="flex flex-1 flex-col gap-4 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <Button
@@ -119,9 +119,7 @@ export default function Index({
                             Today
                         </Button>
                     </div>
-                    <Button onClick={() => setCreating(true)}>
-                        New Event
-                    </Button>
+                    <Button onClick={() => setCreating(true)}>New Event</Button>
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-3">
@@ -149,7 +147,7 @@ export default function Index({
                                         key={key}
                                         type="button"
                                         onClick={() => setSelectedDay(key)}
-                                        className={`flex min-h-24 flex-col items-stretch gap-1 border-r border-b p-1.5 text-left last:border-r-0 hover:bg-muted/50 ${
+                                        className={`hover:bg-muted/50 flex min-h-24 flex-col items-stretch gap-1 border-r border-b p-1.5 text-left last:border-r-0 ${
                                             inMonth
                                                 ? ''
                                                 : 'bg-muted/20 text-muted-foreground'
@@ -158,7 +156,7 @@ export default function Index({
                                         <span
                                             className={`self-start text-xs ${
                                                 isToday
-                                                    ? 'flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground'
+                                                    ? 'bg-primary text-primary-foreground flex size-5 items-center justify-center rounded-full'
                                                     : ''
                                             }`}
                                         >
@@ -170,15 +168,14 @@ export default function Index({
                                                 .map((event) => (
                                                     <span
                                                         key={event.id}
-                                                        className="truncate rounded bg-primary/10 px-1 py-0.5 text-[11px] text-primary"
+                                                        className="bg-primary/10 text-primary truncate rounded px-1 py-0.5 text-[11px]"
                                                     >
                                                         {event.title}
                                                     </span>
                                                 ))}
                                             {dayEvents.length > 3 && (
                                                 <span className="text-muted-foreground text-[11px]">
-                                                    +{dayEvents.length - 3}{' '}
-                                                    more
+                                                    +{dayEvents.length - 3} more
                                                 </span>
                                             )}
                                         </div>
@@ -198,9 +195,7 @@ export default function Index({
             <DaySheet
                 date={selectedDay}
                 onOpenChange={(open) => !open && setSelectedDay(null)}
-                events={
-                    selectedDay ? (eventsByDay.get(selectedDay) ?? []) : []
-                }
+                events={selectedDay ? (eventsByDay.get(selectedDay) ?? []) : []}
                 projects={projects}
             />
 

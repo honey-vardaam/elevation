@@ -18,7 +18,7 @@ class CompanyController extends Controller
 
         Gate::authorize('view', $company);
 
-        return Inertia::render('company/edit', [
+        return Inertia::render('settings/company', [
             'company' => $this->toArray($company),
         ]);
     }

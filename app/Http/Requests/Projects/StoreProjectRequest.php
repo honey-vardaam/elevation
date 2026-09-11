@@ -27,6 +27,7 @@ class StoreProjectRequest extends FormRequest
         return [
             ...$this->projectRules(),
             'use_default_folders' => ['boolean'],
+            'apply_phase_pipeline' => ['boolean'],
             'members' => ['array'],
             'members.*.user_id' => ['required', 'integer', 'exists:users,id'],
             'members.*.role' => ['required', Rule::enum(ProjectRole::class)],

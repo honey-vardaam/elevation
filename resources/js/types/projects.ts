@@ -21,6 +21,20 @@ export type ProjectAbilities = {
     createFolders: boolean;
     editItems: boolean;
     deleteItems: boolean;
+    managePhases: boolean;
+};
+
+export type ProjectPhaseStatus = 'pending' | 'in_progress' | 'completed';
+
+export type ProjectPhaseSummary = {
+    id: number;
+    name: string;
+    status: ProjectPhaseStatus;
+    start_date: string | null;
+    end_date: string | null;
+    notes: string | null;
+    phase_template_id: number | null;
+    open_change_requests_count: number;
 };
 
 export type ProjectMemberSummary = {

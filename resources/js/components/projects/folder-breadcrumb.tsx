@@ -7,14 +7,28 @@ import type { ProjectFolderSummary } from '@/types';
 export function FolderBreadcrumb({
     projectId,
     trail,
+    activePhaseId,
 }: {
     projectId: number;
     trail: ProjectFolderSummary[];
+    activePhaseId: number | null;
 }) {
+    function url(folderId?: number): string {
+        const params = new URLSearchParams({ view: 'folder' });
+        if (folderId) {
+            params.set('folder', String(folderId));
+        }
+        if (activePhaseId) {
+            params.set('panel', String(activePhaseId));
+        }
+
+        return `${show(projectId).url}?${params.toString()}`;
+    }
+
     return (
         <nav className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm">
             <Link
-                href={`${show(projectId).url}?view=folder`}
+                href={url()}
                 className="hover:text-foreground flex items-center gap-1"
             >
                 <Home className="size-4" />
@@ -33,7 +47,7 @@ export function FolderBreadcrumb({
                             </span>
                         ) : (
                             <Link
-                                href={`${show(projectId).url}?view=folder&folder=${folder.id}`}
+                                href={url(folder.id)}
                                 className="hover:text-foreground"
                             >
                                 {folder.name}

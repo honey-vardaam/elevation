@@ -7,9 +7,9 @@ import { projectStatusLabel } from '@/components/projects/project-status-select'
 import type { ProjectTimelineEntry } from '@/types';
 
 const STATUS_BAR_CLASS: Record<ProjectTimelineEntry['status'], string> = {
-    ongoing: 'bg-primary',
-    on_hold: 'bg-amber-500',
-    completed: 'bg-emerald-500',
+    ongoing: 'bg-chart-5',
+    on_hold: 'bg-chart-3',
+    completed: 'bg-chart-1',
 };
 
 export function ProjectTimeline({

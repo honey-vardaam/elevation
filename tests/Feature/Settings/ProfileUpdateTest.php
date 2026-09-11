@@ -6,6 +6,8 @@ use App\Models\Project;
 use App\Models\ProjectMember;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileUpdateTest extends TestCase
@@ -117,6 +119,61 @@ class ProfileUpdateTest extends TestCase
             ->assertRedirect(route('profile.edit'));
 
         $this->assertNotNull($user->fresh());
+    }
+
+    public function test_a_user_can_upload_an_avatar()
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('profile.avatar.update'), [
+            'avatar' => UploadedFile::fake()->image('avatar.jpg'),
+        ]);
+
+        $response->assertRedirect();
+
+        $user->refresh();
+        $this->assertNotNull($user->avatar_path);
+        Storage::disk('public')->assertExists($user->avatar_path);
+        $this->assertNotNull($user->avatar);
+    }
+
+    public function test_uploading_a_new_avatar_replaces_the_old_one()
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('profile.avatar.update'), [
+            'avatar' => UploadedFile::fake()->image('first.jpg'),
+        ]);
+        $firstPath = $user->refresh()->avatar_path;
+
+        $this->actingAs($user)->post(route('profile.avatar.update'), [
+            'avatar' => UploadedFile::fake()->image('second.jpg'),
+        ]);
+        $user->refresh();
+
+        Storage::disk('public')->assertMissing($firstPath);
+        Storage::disk('public')->assertExists($user->avatar_path);
+    }
+
+    public function test_a_user_can_remove_their_avatar()
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+        $this->actingAs($user)->post(route('profile.avatar.update'), [
+            'avatar' => UploadedFile::fake()->image('avatar.jpg'),
+        ]);
+        $path = $user->refresh()->avatar_path;
+
+        $response = $this->actingAs($user)->delete(route('profile.avatar.destroy'));
+
+        $response->assertRedirect();
+        Storage::disk('public')->assertMissing($path);
+        $this->assertNull($user->refresh()->avatar_path);
     }
 
     public function test_user_can_delete_account_while_owning_a_project_with_no_other_members()
