@@ -13,14 +13,23 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+    /** @var list<int> */
+    private const PER_PAGE_OPTIONS = [10, 15, 25, 50, 100];
+
     public function index(Request $request): Response
     {
         Gate::authorize('viewAny', User::class);
 
+        $perPage = $request->integer('per_page', 15);
+        if (! in_array($perPage, self::PER_PAGE_OPTIONS, true)) {
+            $perPage = 15;
+        }
+
         $users = User::query()
             ->orderBy('name')
-            ->get()
-            ->map(fn (User $user) => [
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,

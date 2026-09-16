@@ -1,5 +1,5 @@
 import { Form } from '@inertiajs/react';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -9,7 +9,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { update } from '@/routes/clients';
@@ -37,82 +36,91 @@ export function EditClientDialog({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-client-name">Name</Label>
-                                <Input
-                                    id="edit-client-name"
-                                    name="name"
-                                    defaultValue={client.name}
-                                    autoFocus
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    htmlFor="edit-client-name"
+                                    label="Name"
                                     required
-                                />
-                                <InputError message={errors.name} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-client-company">
-                                    Company
-                                </Label>
-                                <Input
-                                    id="edit-client-company"
-                                    name="company"
-                                    defaultValue={client.company ?? ''}
-                                />
-                                <InputError message={errors.company} />
+                                    error={errors.name}
+                                >
+                                    <Input
+                                        id="edit-client-name"
+                                        name="name"
+                                        placeholder="Jane Cooper"
+                                        defaultValue={client.name}
+                                        autoFocus
+                                        required
+                                    />
+                                </Field>
+                                <Field
+                                    htmlFor="edit-client-company"
+                                    label="Company"
+                                    error={errors.company}
+                                >
+                                    <Input
+                                        id="edit-client-company"
+                                        name="company"
+                                        placeholder="Acme Inc."
+                                        defaultValue={client.company ?? ''}
+                                    />
+                                </Field>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-client-email">
-                                        Email
-                                    </Label>
+                                <Field
+                                    htmlFor="edit-client-email"
+                                    label="Email"
+                                    error={errors.email}
+                                >
                                     <Input
                                         id="edit-client-email"
                                         name="email"
                                         type="email"
+                                        placeholder="jane@example.com"
                                         defaultValue={client.email ?? ''}
                                     />
-                                    <InputError message={errors.email} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="edit-client-phone">
-                                        Phone
-                                    </Label>
+                                </Field>
+                                <Field
+                                    htmlFor="edit-client-phone"
+                                    label="Phone"
+                                    error={errors.phone}
+                                >
                                     <Input
                                         id="edit-client-phone"
                                         name="phone"
+                                        placeholder="555-0142"
                                         defaultValue={client.phone ?? ''}
                                     />
-                                    <InputError message={errors.phone} />
-                                </div>
+                                </Field>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-client-address">
-                                    Address
-                                </Label>
+                            <Field
+                                htmlFor="edit-client-address"
+                                label="Address"
+                                error={errors.address}
+                            >
                                 <Input
                                     id="edit-client-address"
                                     name="address"
+                                    placeholder="123 Main St, Springfield"
                                     defaultValue={client.address ?? ''}
                                 />
-                                <InputError message={errors.address} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-client-notes">
-                                    Notes
-                                </Label>
+                            </Field>
+                            <Field
+                                htmlFor="edit-client-notes"
+                                label="Notes"
+                                error={errors.notes}
+                            >
                                 <Textarea
                                     id="edit-client-notes"
                                     name="notes"
                                     rows={3}
+                                    placeholder="Anything worth remembering about this client…"
                                     defaultValue={client.notes ?? ''}
                                 />
-                                <InputError message={errors.notes} />
-                            </div>
+                            </Field>
 
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button variant="secondary">
-                                        Cancel
-                                    </Button>
+                                    <Button variant="secondary">Cancel</Button>
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
                                     {processing && <Spinner />}

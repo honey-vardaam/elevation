@@ -1,6 +1,7 @@
 import { Form } from '@inertiajs/react';
 import { useState } from 'react';
 import { store } from '@/routes/projects/folders';
+import { Field } from '@/components/field';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -11,9 +12,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import InputError from '@/components/input-error';
 
 export function NewFolderDialog({
     projectId,
@@ -40,8 +39,12 @@ export function NewFolderDialog({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="folder-name">Name</Label>
+                            <Field
+                                htmlFor="folder-name"
+                                label="Name"
+                                required
+                                error={errors.name}
+                            >
                                 <Input
                                     id="folder-name"
                                     name="name"
@@ -49,8 +52,7 @@ export function NewFolderDialog({
                                     required
                                     placeholder="e.g. Site Specification"
                                 />
-                                <InputError message={errors.name} />
-                            </div>
+                            </Field>
 
                             {parentId !== null && (
                                 <input

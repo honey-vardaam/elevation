@@ -1,5 +1,5 @@
 import { Form } from '@inertiajs/react';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -9,7 +9,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -76,8 +75,12 @@ export function RenameMoveDialog({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="item-name">Name</Label>
+                            <Field
+                                htmlFor="item-name"
+                                label="Name"
+                                required
+                                error={errors.name}
+                            >
                                 <Input
                                     id="item-name"
                                     name="name"
@@ -85,11 +88,13 @@ export function RenameMoveDialog({
                                     required
                                     autoFocus
                                 />
-                                <InputError message={errors.name} />
-                            </div>
+                            </Field>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="item-folder">Folder</Label>
+                            <Field
+                                htmlFor="item-folder"
+                                label="Folder"
+                                error={errors.folder_id}
+                            >
                                 <Select
                                     name="folder_id"
                                     defaultValue={
@@ -117,8 +122,7 @@ export function RenameMoveDialog({
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <InputError message={errors.folder_id} />
-                            </div>
+                            </Field>
 
                             <DialogFooter>
                                 <DialogClose asChild>

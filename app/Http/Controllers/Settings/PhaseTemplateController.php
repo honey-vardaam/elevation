@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PhaseTemplates\StorePhaseTemplateRequest;
 use App\Http\Requests\PhaseTemplates\UpdatePhaseTemplateRequest;
+use App\Models\DefaultFolderTemplate;
 use App\Models\PhaseTemplate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,8 +29,18 @@ class PhaseTemplateController extends Controller
                 'sort_order' => $template->sort_order,
             ]);
 
+        $defaultFolderTemplates = DefaultFolderTemplate::query()
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (DefaultFolderTemplate $folder) => [
+                'id' => $folder->id,
+                'name' => $folder->name,
+                'sort_order' => $folder->sort_order,
+            ]);
+
         return Inertia::render('settings/phase-templates', [
             'phaseTemplates' => $phaseTemplates,
+            'defaultFolderTemplates' => $defaultFolderTemplates,
         ]);
     }
 

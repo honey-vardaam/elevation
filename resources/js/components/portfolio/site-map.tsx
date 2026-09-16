@@ -63,7 +63,10 @@ export function SiteMap({
                 />
                 <FitBounds pins={pins} />
                 {pins.map((pin) => (
-                    <Marker key={pin.id} position={[pin.latitude, pin.longitude]}>
+                    <Marker
+                        key={pin.id}
+                        position={[pin.latitude, pin.longitude]}
+                    >
                         <Popup>
                             <span className="font-medium">{pin.name}</span>
                             <br />

@@ -1,4 +1,5 @@
 import { Form, Head } from '@inertiajs/react';
+import { Field } from '@/components/field';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import TextLink from '@/components/text-link';
@@ -31,8 +32,12 @@ export default function Login({ status, canResetPassword }: Props) {
                 {({ processing, errors }) => (
                     <>
                         <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
+                            <Field
+                                htmlFor="email"
+                                label="Email address"
+                                required
+                                error={errors.email}
+                            >
                                 <Input
                                     id="email"
                                     type="email"
@@ -43,12 +48,19 @@ export default function Login({ status, canResetPassword }: Props) {
                                     autoComplete="email"
                                     placeholder="email@example.com"
                                 />
-                                <InputError message={errors.email} />
-                            </div>
+                            </Field>
 
                             <div className="grid gap-2">
                                 <div className="flex items-center">
-                                    <Label htmlFor="password">Password</Label>
+                                    <Label htmlFor="password">
+                                        Password
+                                        <span
+                                            className="text-destructive ml-0.5"
+                                            aria-hidden="true"
+                                        >
+                                            *
+                                        </span>
+                                    </Label>
                                     {canResetPassword && (
                                         <TextLink
                                             href={request()}

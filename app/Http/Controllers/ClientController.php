@@ -13,14 +13,23 @@ use Inertia\Response;
 
 class ClientController extends Controller
 {
+    /** @var list<int> */
+    private const PER_PAGE_OPTIONS = [10, 15, 25, 50, 100];
+
     public function index(Request $request): Response
     {
         Gate::authorize('viewAny', Client::class);
 
+        $perPage = $request->integer('per_page', 15);
+        if (! in_array($perPage, self::PER_PAGE_OPTIONS, true)) {
+            $perPage = 15;
+        }
+
         $clients = Client::query()
             ->orderBy('name')
-            ->get()
-            ->map(fn (Client $client) => [
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(fn (Client $client) => [
                 'id' => $client->id,
                 'name' => $client->name,
                 'company' => $client->company,

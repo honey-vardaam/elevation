@@ -33,4 +33,25 @@ class StoreProjectRequest extends FormRequest
             'members.*.role' => ['required', Rule::enum(ProjectRole::class)],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            ...$this->projectMessages(),
+            'members.*.user_id.required' => 'Select a user for each team member added.',
+            'members.*.user_id.exists' => 'One of the selected members no longer exists.',
+            'members.*.role.enum' => 'Choose a valid role for each team member.',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return $this->projectAttributes();
+    }
 }

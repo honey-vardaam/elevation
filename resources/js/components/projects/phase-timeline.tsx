@@ -11,6 +11,7 @@ import {
     UserCheck,
     XCircle,
 } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -416,12 +417,10 @@ function ActivityCard({
 function Composer({
     projectId,
     phaseId,
-    canManage,
     projectMembers,
 }: {
     projectId: number;
     phaseId: number;
-    canManage: boolean;
     projectMembers: TaggableMember[];
 }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -445,14 +444,6 @@ function Composer({
         });
     }
 
-    function postApproval() {
-        router.post(
-            store([projectId, phaseId]).url,
-            { type: 'approval' },
-            { preserveScroll: true },
-        );
-    }
-
     return (
         <form onSubmit={handleSubmit} className="space-y-2">
             <Tabs
@@ -461,7 +452,7 @@ function Composer({
                     setData('type', value as typeof data.type)
                 }
             >
-                <TabsList>
+                <TabsList className="w-full">
                     <TabsTrigger value="comment">
                         <MessageCircle className="size-3.5" />
                         Comment
@@ -476,7 +467,7 @@ function Composer({
                     </TabsTrigger>
                 </TabsList>
             </Tabs>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-muted-foreground -mt-1 text-xs">
                 {data.type === 'comment' &&
                     'General discussion, feedback, or a status update - purely informational, nothing to resolve.'}
                 {data.type === 'change_request' &&
@@ -549,19 +540,6 @@ function Composer({
             {errors.body && (
                 <p className="text-destructive text-xs">{errors.body}</p>
             )}
-
-            {canManage && (
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={postApproval}
-                >
-                    <CheckCircle2 className="size-3.5" />
-                    Approve this phase
-                </Button>
-            )}
         </form>
     );
 }
@@ -596,6 +574,14 @@ export function PhaseTimeline({
         );
     }
 
+    function postApproval() {
+        router.post(
+            store([projectId, phase.id]).url,
+            { type: 'approval' },
+            { preserveScroll: true },
+        );
+    }
+
     const hasOpenChangeRequests = phase.open_change_requests_count > 0;
     const hasApproval = activities.some((a) => a.type === 'approved');
 
@@ -603,9 +589,10 @@ export function PhaseTimeline({
         <div className="flex h-full flex-col">
             <div className="flex-1 space-y-3 overflow-auto p-3">
                 {activities.length === 0 ? (
-                    <p className="text-muted-foreground p-3 text-center text-sm">
-                        No activity yet. Start the conversation below.
-                    </p>
+                    <EmptyState
+                        icon={MessageCircle}
+                        message="No activity yet. Start the conversation below."
+                    />
                 ) : (
                     activities.map((activity) =>
                         activity.type === 'comment' ||
@@ -626,36 +613,49 @@ export function PhaseTimeline({
                 )}
             </div>
 
-            <div className="space-y-3 border-t p-3">
+            <div className="border-t p-3">
                 <Composer
                     projectId={projectId}
                     phaseId={phase.id}
-                    canManage={canManage}
                     projectMembers={projectMembers}
                 />
-
-                {canManage && phase.status !== 'completed' && (
-                    <div className="space-y-1">
-                        {(hasOpenChangeRequests || !hasApproval) && (
-                            <p className="text-muted-foreground text-xs">
-                                {hasOpenChangeRequests
-                                    ? `${phase.open_change_requests_count} change request(s) still open. `
-                                    : ''}
-                                {!hasApproval ? 'No approval posted yet.' : ''}
-                            </p>
-                        )}
-                        <Button
-                            type="button"
-                            className="w-full"
-                            onClick={advancePhase}
-                        >
-                            {nextPhaseName
-                                ? `Move to ${nextPhaseName}`
-                                : 'Mark project Completed'}
-                        </Button>
-                    </div>
-                )}
             </div>
+
+            {canManage && phase.status !== 'completed' && (
+                <div className="bg-muted/40 border-t px-3 py-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-muted-foreground text-xs">
+                            {hasOpenChangeRequests &&
+                                `${phase.open_change_requests_count} change request(s) still open. `}
+                            {hasApproval
+                                ? 'Approved - ready to advance.'
+                                : 'No approval posted yet.'}
+                        </p>
+                        <div className="ml-auto flex shrink-0 items-center gap-2">
+                            {!hasApproval && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={postApproval}
+                                >
+                                    <CheckCircle2 className="size-3.5" />
+                                    Approve
+                                </Button>
+                            )}
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={advancePhase}
+                            >
+                                {nextPhaseName
+                                    ? `Move to ${nextPhaseName}`
+                                    : 'Mark project Completed'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

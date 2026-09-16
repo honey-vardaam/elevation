@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\CalendarEvent;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Middleware;
@@ -45,6 +46,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'dueReminders' => fn () => $this->dueReminders($request),
+            'notifications' => fn () => $this->notifications($request),
         ];
     }
 
@@ -87,5 +89,33 @@ class HandleInertiaRequests extends Middleware
             'start_at' => $event->start_at->toIso8601String(),
             'all_day' => $event->all_day,
         ])->all();
+    }
+
+    /**
+     * The current user's most recent notifications plus their unread count,
+     * for the notification bell/panel available on every page.
+     *
+     * @return array<string, mixed>
+     */
+    private function notifications(Request $request): array
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+
+        if (! $user) {
+            return ['unread_count' => 0, 'items' => []];
+        }
+
+        $items = $user->notifications()->latest()->limit(20)->get();
+
+        return [
+            'unread_count' => $user->unreadNotifications()->count(),
+            'items' => $items->map(fn ($notification) => [
+                'id' => $notification->id,
+                'read_at' => $notification->read_at?->toIso8601String(),
+                'created_at' => $notification->created_at->toIso8601String(),
+                ...$notification->data,
+            ])->all(),
+        ];
     }
 }

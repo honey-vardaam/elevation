@@ -1,11 +1,10 @@
 import { Form, Head } from '@inertiajs/react';
 import { useRef } from 'react';
 import SecurityController from '@/actions/App/Http/Controllers/Settings/SecurityController';
+import { Field } from '@/components/field';
 import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
 import { edit } from '@/routes/security';
 import type { Props as ManagePasskeysProps } from '@/components/manage-passkeys';
 import ManagePasskeys from '@/components/manage-passkeys';
@@ -29,11 +28,7 @@ export default function Security(props: Props) {
             <h1 className="sr-only">Security settings</h1>
 
             <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Update password"
-                    description="Ensure your account is using a long, random password to stay secure"
-                />
+                <Heading variant="small" title="Update password" />
 
                 <Form
                     {...SecurityController.update.form()}
@@ -59,56 +54,52 @@ export default function Security(props: Props) {
                 >
                     {({ errors, processing }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="current_password">
-                                    Current password
-                                </Label>
-
+                            <Field
+                                htmlFor="current_password"
+                                label="Current password"
+                                required
+                                error={errors.current_password}
+                            >
                                 <PasswordInput
                                     id="current_password"
                                     ref={currentPasswordInput}
                                     name="current_password"
-                                    className="mt-1 block w-full"
                                     autoComplete="current-password"
                                     placeholder="Current password"
                                 />
+                            </Field>
 
-                                <InputError message={errors.current_password} />
-                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    htmlFor="password"
+                                    label="New password"
+                                    required
+                                    error={errors.password}
+                                >
+                                    <PasswordInput
+                                        id="password"
+                                        ref={passwordInput}
+                                        name="password"
+                                        autoComplete="new-password"
+                                        placeholder="New password"
+                                        passwordrules={props.passwordRules}
+                                    />
+                                </Field>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="password">New password</Label>
-
-                                <PasswordInput
-                                    id="password"
-                                    ref={passwordInput}
-                                    name="password"
-                                    className="mt-1 block w-full"
-                                    autoComplete="new-password"
-                                    placeholder="New password"
-                                    passwordrules={props.passwordRules}
-                                />
-
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="password_confirmation">
-                                    Confirm password
-                                </Label>
-
-                                <PasswordInput
-                                    id="password_confirmation"
-                                    name="password_confirmation"
-                                    className="mt-1 block w-full"
-                                    autoComplete="new-password"
-                                    placeholder="Confirm password"
-                                    passwordrules={props.passwordRules}
-                                />
-
-                                <InputError
-                                    message={errors.password_confirmation}
-                                />
+                                <Field
+                                    htmlFor="password_confirmation"
+                                    label="Confirm password"
+                                    required
+                                    error={errors.password_confirmation}
+                                >
+                                    <PasswordInput
+                                        id="password_confirmation"
+                                        name="password_confirmation"
+                                        autoComplete="new-password"
+                                        placeholder="Confirm password"
+                                        passwordrules={props.passwordRules}
+                                    />
+                                </Field>
                             </div>
 
                             <div className="flex items-center gap-4">

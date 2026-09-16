@@ -1,5 +1,5 @@
-import { Head, router } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { Head, router, setLayoutProps } from '@inertiajs/react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DaySheet } from '@/components/calendar/day-sheet';
 import { EventDialog } from '@/components/calendar/event-dialog';
@@ -45,6 +45,7 @@ export default function Index({
 }) {
     const [selectedDay, setSelectedDay] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
+    const openCreateDialog = useCallback(() => setCreating(true), []);
 
     const [year, monthNum] = month.split('-').map(Number);
     const monthStart = new Date(year, monthNum - 1, 1);
@@ -82,48 +83,51 @@ export default function Index({
         );
     }
 
+    useLayoutEffect(() => {
+        setLayoutProps({
+            headerAction: <Button onClick={openCreateDialog}>New Event</Button>,
+        });
+    }, [openCreateDialog]);
+
     return (
         <>
             <Head title="Calendar" />
 
             <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() => shiftMonth(-1)}
-                        >
-                            <ChevronLeft className="size-4" />
-                            <span className="sr-only">Previous month</span>
-                        </Button>
-                        <h2 className="min-w-40 text-center text-lg font-medium">
-                            {monthLabel}
-                        </h2>
-                        <Button
-                            variant="outline"
-                            size="icon-sm"
-                            onClick={() => shiftMonth(1)}
-                        >
-                            <ChevronRight className="size-4" />
-                            <span className="sr-only">Next month</span>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            onClick={() =>
-                                goToMonth(
-                                    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-                                )
-                            }
-                        >
-                            Today
-                        </Button>
-                    </div>
-                    <Button onClick={() => setCreating(true)}>New Event</Button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => shiftMonth(-1)}
+                    >
+                        <ChevronLeft className="size-4" />
+                        <span className="sr-only">Previous month</span>
+                    </Button>
+                    <h2 className="min-w-40 text-center text-lg font-medium">
+                        {monthLabel}
+                    </h2>
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => shiftMonth(1)}
+                    >
+                        <ChevronRight className="size-4" />
+                        <span className="sr-only">Next month</span>
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        onClick={() =>
+                            goToMonth(
+                                `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+                            )
+                        }
+                    >
+                        Today
+                    </Button>
                 </div>
 
-                <div className="grid gap-6 xl:grid-cols-3">
-                    <Card className="p-0 xl:col-span-2">
+                <div className="grid min-h-0 flex-1 gap-6 xl:grid-cols-3">
+                    <Card className="flex flex-1 flex-col gap-0 p-0 xl:col-span-2">
                         <div className="grid grid-cols-7 border-b">
                             {WEEKDAY_LABELS.map((label) => (
                                 <div
@@ -134,7 +138,7 @@ export default function Index({
                                 </div>
                             ))}
                         </div>
-                        <div className="grid grid-cols-7">
+                        <div className="grid flex-1 grid-cols-7 grid-rows-6">
                             {grid.map((date) => {
                                 const key = toKey(date);
                                 const dayEvents = eventsByDay.get(key) ?? [];
@@ -147,7 +151,7 @@ export default function Index({
                                         key={key}
                                         type="button"
                                         onClick={() => setSelectedDay(key)}
-                                        className={`hover:bg-muted/50 flex min-h-24 flex-col items-stretch gap-1 border-r border-b p-1.5 text-left last:border-r-0 ${
+                                        className={`hover:bg-muted/50 flex min-h-20 flex-col items-stretch gap-1 border-r border-b p-1.5 text-left last:border-r-0 ${
                                             inMonth
                                                 ? ''
                                                 : 'bg-muted/20 text-muted-foreground'
@@ -185,10 +189,12 @@ export default function Index({
                         </div>
                     </Card>
 
-                    <ProjectTimeline
-                        projects={projectTimeline}
-                        monthLabel={monthLabel}
-                    />
+                    <div className="self-start">
+                        <ProjectTimeline
+                            projects={projectTimeline}
+                            monthLabel={monthLabel}
+                        />
+                    </div>
                 </div>
             </div>
 

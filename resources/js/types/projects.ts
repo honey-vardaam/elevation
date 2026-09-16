@@ -26,15 +26,29 @@ export type ProjectAbilities = {
 
 export type ProjectPhaseStatus = 'pending' | 'in_progress' | 'completed';
 
+export type PhaseActivityPreview = {
+    id: number;
+    type: string;
+    preview: string;
+    author: { id: number; name: string };
+    attachment_name: string | null;
+    created_at: string;
+};
+
 export type ProjectPhaseSummary = {
     id: number;
     name: string;
     status: ProjectPhaseStatus;
     start_date: string | null;
     end_date: string | null;
+    duration: string | null;
     notes: string | null;
     phase_template_id: number | null;
+    team: { id: number; name: string } | null;
     open_change_requests_count: number;
+    change_requests_count: number;
+    comments_count: number;
+    recent_activity: PhaseActivityPreview[];
 };
 
 export type ProjectMemberSummary = {
@@ -50,6 +64,7 @@ export type ProjectMemberSummary = {
 export type ProjectFolderSummary = {
     id: number;
     name: string;
+    size: number;
 };
 
 export type ProjectFileSummary = {
@@ -66,14 +81,16 @@ export type ProjectFileSummary = {
         edit: boolean;
         delete: boolean;
     };
-    folder?: ProjectFolderSummary | null;
 };
 
-type ProjectDetailFields = {
+export type ProjectDetailFields = {
     id: number;
     name: string;
     description: string | null;
     banner_url: string | null;
+    banner_focal_x: number;
+    banner_focal_y: number;
+    banner_zoom: number;
     client_name: string | null;
     client_email: string | null;
     client_phone: string | null;

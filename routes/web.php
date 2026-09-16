@@ -14,7 +14,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 require __DIR__.'/settings.php';
 require __DIR__.'/phase-templates.php';
+require __DIR__.'/default-folder-templates.php';
+require __DIR__.'/teams.php';
 require __DIR__.'/inbox.php';
+require __DIR__.'/notifications.php';
 require __DIR__.'/projects.php';
 require __DIR__.'/users.php';
 require __DIR__.'/clients.php';

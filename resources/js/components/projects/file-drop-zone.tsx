@@ -7,6 +7,7 @@ import {
     useState,
 } from 'react';
 import { UploadCloud } from 'lucide-react';
+import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
 import { store } from '@/routes/projects/files';
 
@@ -43,6 +44,11 @@ export function FileDropZone({
             router.post(store(projectId).url, formData, {
                 forceFormData: true,
                 preserveScroll: true,
+                onError: (errors) => {
+                    toast.error(
+                        `${next.name}: ${Object.values(errors)[0] ?? 'Upload failed.'}`,
+                    );
+                },
                 onFinish: () => uploadNext(rest),
             });
         },

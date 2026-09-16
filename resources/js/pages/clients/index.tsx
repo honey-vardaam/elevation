@@ -1,24 +1,18 @@
-import { Form, Head } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, setLayoutProps } from '@inertiajs/react';
+import { useLayoutEffect, useState } from 'react';
 import { Contact, MoreHorizontal } from 'lucide-react';
 import { EditClientDialog } from '@/components/clients/edit-client-dialog';
 import { NewClientDialog } from '@/components/clients/new-client-dialog';
+import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
 import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Spinner } from '@/components/ui/spinner';
+import { Pagination } from '@/components/ui/pagination';
 import {
     Table,
     TableBody,
@@ -28,91 +22,108 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { destroy, index } from '@/routes/clients';
-import type { ClientSummary } from '@/types';
+import type { ClientSummary, Paginated } from '@/types';
 
-export default function Index({ clients }: { clients: ClientSummary[] }) {
+export default function Index({
+    clients,
+}: {
+    clients: Paginated<ClientSummary>;
+}) {
     const [editing, setEditing] = useState<ClientSummary | null>(null);
     const [deleting, setDeleting] = useState<ClientSummary | null>(null);
+
+    useLayoutEffect(() => {
+        setLayoutProps({ headerAction: <NewClientDialog /> });
+    }, []);
 
     return (
         <>
             <Head title="Clients" />
 
-            <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="flex items-center justify-between">
-                    <p className="text-muted-foreground text-sm">
-                        Your firm's regular clients.
-                    </p>
-                    <NewClientDialog />
-                </div>
+            <h1 className="sr-only">Clients</h1>
 
-                {clients.length === 0 ? (
+            <div className="flex h-[calc(100svh-4rem)] flex-col gap-4 p-4">
+                {clients.data.length === 0 ? (
                     <EmptyState
                         icon={Contact}
                         message="No clients yet. Add one to keep their details on hand."
                     />
                 ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Company</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Phone</TableHead>
-                                <TableHead className="w-10" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {clients.map((client) => (
-                                <TableRow key={client.id}>
-                                    <TableCell className="font-medium">
-                                        {client.name}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {client.company ?? '—'}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {client.email ?? '—'}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {client.phone ?? '—'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon-sm"
-                                                >
-                                                    <MoreHorizontal className="size-4" />
-                                                    <span className="sr-only">
-                                                        Client actions
-                                                    </span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuItem
-                                                    onSelect={() =>
-                                                        setEditing(client)
-                                                    }
-                                                >
-                                                    Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    variant="destructive"
-                                                    onSelect={() =>
-                                                        setDeleting(client)
-                                                    }
-                                                >
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                        <Table>
+                            <TableHeader className="sticky top-0 z-10">
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Company</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Phone</TableHead>
+                                    <TableHead className="w-10" />
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {clients.data.map((client) => (
+                                    <TableRow key={client.id}>
+                                        <TableCell className="font-medium">
+                                            {client.name}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {client.company ?? '—'}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {client.email ?? '—'}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {client.phone ?? '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon-sm"
+                                                    >
+                                                        <MoreHorizontal className="size-4" />
+                                                        <span className="sr-only">
+                                                            Client actions
+                                                        </span>
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onSelect={() =>
+                                                            setEditing(client)
+                                                        }
+                                                    >
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        variant="destructive"
+                                                        onSelect={() =>
+                                                            setDeleting(client)
+                                                        }
+                                                    >
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
+
+                {clients.data.length > 0 && (
+                    <div className="bg-background sticky bottom-0 shrink-0 border-t px-1 pt-3">
+                        <Pagination
+                            links={clients.links}
+                            from={clients.from}
+                            to={clients.to}
+                            total={clients.total}
+                            perPage={clients.per_page}
+                        />
+                    </div>
                 )}
             </div>
 
@@ -124,43 +135,23 @@ export default function Index({ clients }: { clients: ClientSummary[] }) {
                 />
             )}
 
-            <Dialog
+            <ConfirmDeleteDialog
                 open={deleting !== null}
                 onOpenChange={(open) => !open && setDeleting(null)}
-            >
-                <DialogContent>
-                    <DialogTitle>Delete client?</DialogTitle>
-                    <p className="text-muted-foreground text-sm">
+                title="Delete client?"
+                description={
+                    <>
                         This permanently removes{' '}
                         <span className="text-foreground font-medium">
                             {deleting?.name}
                         </span>
                         's details. This cannot be undone.
-                    </p>
-                    <DialogFooter>
-                        <DialogClose asChild>
-                            <Button variant="secondary">Cancel</Button>
-                        </DialogClose>
-                        {deleting && (
-                            <Form
-                                {...destroy.form(deleting.id)}
-                                onSuccess={() => setDeleting(null)}
-                            >
-                                {({ processing }) => (
-                                    <Button
-                                        type="submit"
-                                        variant="destructive"
-                                        disabled={processing}
-                                    >
-                                        {processing && <Spinner />}
-                                        Delete client
-                                    </Button>
-                                )}
-                            </Form>
-                        )}
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </>
+                }
+                confirmLabel="Delete client"
+                formAction={deleting ? destroy.form(deleting.id) : undefined}
+                onSuccess={() => setDeleting(null)}
+            />
         </>
     );
 }

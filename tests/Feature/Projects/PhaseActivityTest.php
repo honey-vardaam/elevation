@@ -161,4 +161,38 @@ class PhaseActivityTest extends TestCase
 
         $response->assertNotFound();
     }
+
+    public function test_posting_a_comment_notifies_other_project_members_but_not_the_author()
+    {
+        $owner = User::factory()->create();
+        $project = Project::factory()->for($owner, 'owner')->create();
+        $author = User::factory()->create();
+        ProjectMember::factory()->for($project)->for($author)->viewer()->create();
+        $phase = ProjectPhase::factory()->for($project)->create();
+
+        $this->actingAs($author)->post(route('projects.phases.activities.store', [$project, $phase]), [
+            'type' => 'comment',
+            'body' => 'Looking good so far.',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseCount('notifications', 1);
+        $this->assertCount(0, $author->fresh()->notifications);
+        $this->assertCount(1, $owner->fresh()->notifications);
+    }
+
+    public function test_resolving_a_change_request_notifies_its_author()
+    {
+        $manager = User::factory()->create();
+        $project = Project::factory()->create();
+        ProjectMember::factory()->for($project)->for($manager)->manager()->create();
+        $author = User::factory()->create();
+        ProjectMember::factory()->for($project)->for($author)->viewer()->create();
+        $phase = ProjectPhase::factory()->for($project)->create();
+        $changeRequest = PhaseActivity::factory()->for($phase, 'projectPhase')->for($author, 'author')->changeRequest()->create();
+
+        $this->actingAs($manager)->patch(route('projects.phases.activities.resolve', [$project, $phase, $changeRequest]))
+            ->assertSessionHasNoErrors();
+
+        $this->assertCount(1, $author->fresh()->notifications);
+    }
 }

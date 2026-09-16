@@ -19,21 +19,19 @@ export function StatsStrip({ stats }: { stats: PortfolioStats }) {
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1 text-center">
+                <div className="space-y-1">
                     <p className="text-3xl font-semibold">
                         {stats.completed_count}
                     </p>
-                    <p className="text-muted-foreground text-xs">
-                        Completed
-                    </p>
+                    <p className="text-muted-foreground text-xs">Completed</p>
                 </div>
-                <div className="space-y-1 text-center">
+                <div className="space-y-1">
                     <p className="text-3xl font-semibold">
                         {stats.ongoing_count}
                     </p>
                     <p className="text-muted-foreground text-xs">Ongoing</p>
                 </div>
-                <div className="space-y-1 text-center">
+                <div className="space-y-1">
                     <p className="text-3xl font-semibold">
                         {formatSqft(stats.sqft_covered)}
                     </p>
@@ -44,7 +42,7 @@ export function StatsStrip({ stats }: { stats: PortfolioStats }) {
             </div>
 
             {breakdown.length > 0 && (
-                <div className="flex flex-wrap justify-center gap-2">
+                <div className="flex flex-wrap gap-2">
                     {breakdown.map(([type, count]) => (
                         <Badge key={type} variant="outline">
                             {type === 'uncategorized'

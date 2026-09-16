@@ -139,6 +139,49 @@ class DashboardTest extends TestCase
         );
     }
 
+    public function test_weekly_comparison_reflects_the_change_from_the_prior_week()
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user, 'owner')->create();
+
+        TimeEntry::factory()->for($user)->for($project)->create([
+            'started_at' => today()->subDays(10)->setTime(9, 0),
+            'ended_at' => today()->subDays(10)->setTime(11, 0),
+        ]);
+        Task::factory()->for($user)->completed()->create(['completed_at' => today()->subDays(10)]);
+
+        TimeEntry::factory()->for($user)->for($project)->create([
+            'started_at' => today()->setTime(9, 0),
+            'ended_at' => today()->setTime(12, 0),
+        ]);
+        Task::factory()->for($user)->completed()->create(['completed_at' => today()]);
+        Task::factory()->for($user)->completed()->create(['completed_at' => today()]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('weeklyComparison.hours_delta_pct', 50)
+            ->where('weeklyComparison.tasks_delta', 1)
+        );
+    }
+
+    public function test_weekly_comparison_hours_delta_is_null_without_prior_week_hours()
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user, 'owner')->create();
+
+        TimeEntry::factory()->for($user)->for($project)->create([
+            'started_at' => today()->setTime(9, 0),
+            'ended_at' => today()->setTime(11, 0),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('weeklyComparison.hours_delta_pct', null)
+        );
+    }
+
     public function test_allotted_projects_only_includes_accessible_projects()
     {
         $user = User::factory()->create();
@@ -150,33 +193,6 @@ class DashboardTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->has('allottedProjects', 1)
             ->where('allottedProjects.0.name', 'Mine')
-        );
-    }
-
-    public function test_project_progress_reflects_the_share_of_completed_phases()
-    {
-        $user = User::factory()->create();
-        $project = Project::factory()->for($user, 'owner')->create();
-        ProjectPhase::factory()->for($project)->create(['status' => 'completed']);
-        ProjectPhase::factory()->for($project)->create(['status' => 'completed']);
-        ProjectPhase::factory()->for($project)->create(['status' => 'in_progress']);
-        ProjectPhase::factory()->for($project)->create(['status' => 'pending']);
-
-        $response = $this->actingAs($user)->get(route('dashboard'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('projectProgress', 50)
-        );
-    }
-
-    public function test_project_progress_is_zero_with_no_phases()
-    {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get(route('dashboard'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('projectProgress', 0)
         );
     }
 }

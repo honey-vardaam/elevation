@@ -19,6 +19,9 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $description
  * @property string|null $banner_path
+ * @property float $banner_focal_x
+ * @property float $banner_focal_y
+ * @property float $banner_zoom
  * @property string|null $client_name
  * @property string|null $client_email
  * @property string|null $client_phone
@@ -42,6 +45,9 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'name',
     'description',
+    'banner_focal_x',
+    'banner_focal_y',
+    'banner_zoom',
     'client_name',
     'client_email',
     'client_phone',
@@ -60,7 +66,10 @@ class Project extends Model
     use HasFactory;
 
     /**
-     * The default folder structure offered when creating a project.
+     * The starting set of default_folder_templates rows, seeded by the
+     * create_default_folder_templates_table migration. Owners manage the
+     * live list from Settings from there on - seedDefaultFolders() reads
+     * DefaultFolderTemplate, not this constant.
      *
      * @var array<int, string>
      */
@@ -84,6 +93,9 @@ class Project extends Model
             'site_area' => 'float',
             'latitude' => 'float',
             'longitude' => 'float',
+            'banner_focal_x' => 'float',
+            'banner_focal_y' => 'float',
+            'banner_zoom' => 'float',
         ];
     }
 
@@ -113,11 +125,14 @@ class Project extends Model
     }
 
     /**
-     * Create the standard set of root-level folders for this project.
+     * Create the standard set of root-level folders for this project, from
+     * the organization's configurable default-folder-structure settings.
      */
     public function seedDefaultFolders(User $creator): void
     {
-        foreach (self::DEFAULT_FOLDER_NAMES as $name) {
+        $names = DefaultFolderTemplate::orderBy('sort_order')->pluck('name');
+
+        foreach ($names as $name) {
             $folder = new Folder(['name' => $name]);
             $folder->project_id = $this->id;
             $folder->parent_id = null;

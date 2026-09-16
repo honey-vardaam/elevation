@@ -4,16 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
+use App\Models\Folder;
 use App\Models\PhaseActivity;
 use App\Models\PhaseTemplate;
 use App\Models\Project;
 use App\Models\ProjectFile;
 use App\Models\ProjectMember;
 use App\Models\ProjectPhase;
+use App\Models\Team;
 use App\Models\User;
 use App\Support\PhaseActivityPresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -46,6 +49,7 @@ class ProjectController extends Controller
             'assignableUsers' => $canCreate
                 ? User::query()->orderBy('name')->get(['id', 'name', 'email'])
                 : [],
+            'teams' => $canCreate ? Team::summaries() : [],
             'hasPhaseTemplates' => PhaseTemplate::query()->exists(),
         ]);
     }
@@ -86,12 +90,13 @@ class ProjectController extends Controller
         Gate::authorize('view', $project);
 
         $user = $request->user();
-        $view = $request->query('view') === 'list' ? 'list' : 'folder';
+        $view = $request->query('view') === 'grid' ? 'grid' : 'list';
         $folderId = $request->query('folder') ? (int) $request->query('folder') : null;
 
         // One query for the whole tree - breadcrumbs/children are built in
         // memory instead of resolving ->parent recursively per request.
         $allFolders = $project->folders()->get(['id', 'parent_id', 'name']);
+        $folderSizes = $this->folderSizes($project, $allFolders);
 
         $currentFolder = null;
         $breadcrumbTrail = [];
@@ -110,36 +115,28 @@ class ProjectController extends Controller
             }
         }
 
-        if ($view === 'list') {
-            $files = $project->files()
-                ->with(['folder:id,name', 'uploadedBy:id,name'])
-                ->latest()
-                ->get()
-                ->map(fn ($file) => $this->fileToArray($file, $project, $user, includeFolder: true));
+        // Both the grid and list views browse the same folder-scoped tree -
+        // "view" only changes how the frontend renders the items, not which
+        // items are fetched.
+        $folders = $allFolders
+            ->where('parent_id', $folderId)
+            ->map(fn ($folder) => [
+                'id' => $folder->id,
+                'name' => $folder->name,
+                'size' => $folderSizes[$folder->id] ?? 0,
+            ])
+            ->values();
 
-            $folders = [];
-        } else {
-            $childFolders = $allFolders
-                ->where('parent_id', $folderId)
-                ->map(fn ($folder) => [
-                    'id' => $folder->id,
-                    'name' => $folder->name,
-                ])
-                ->values();
-
-            $files = $project->files()
-                ->where('folder_id', $folderId)
-                ->with('uploadedBy:id,name')
-                ->latest()
-                ->get()
-                ->map(fn ($file) => $this->fileToArray($file, $project, $user));
-
-            $folders = $childFolders;
-        }
+        $files = $project->files()
+            ->where('folder_id', $folderId)
+            ->with('uploadedBy:id,name')
+            ->latest()
+            ->get()
+            ->map(fn ($file) => $this->fileToArray($file, $project, $user));
 
         $canManagePhases = $project->isManagedBy($user);
 
-        $phaseModels = $project->phases()->get();
+        $phaseModels = $project->phases()->with('team:id,name')->get();
 
         $phases = $phaseModels->map(fn (ProjectPhase $phase) => [
             'id' => $phase->id,
@@ -147,9 +144,21 @@ class ProjectController extends Controller
             'status' => $phase->status->value,
             'start_date' => $phase->start_date?->toDateString(),
             'end_date' => $phase->end_date?->toDateString(),
+            'duration' => $phase->durationLabel(),
             'notes' => $phase->notes,
             'phase_template_id' => $phase->phase_template_id,
+            'team' => $phase->team ? ['id' => $phase->team->id, 'name' => $phase->team->name] : null,
             'open_change_requests_count' => $phase->openChangeRequestsCount(),
+            'change_requests_count' => $phase->changeRequestsCount(),
+            'comments_count' => $phase->commentsCount(),
+            'recent_activity' => $phase->recentActivity()->map(fn (PhaseActivity $activity) => [
+                'id' => $activity->id,
+                'type' => $activity->type->value,
+                'preview' => PhaseActivityPresenter::preview($activity),
+                'author' => ['id' => $activity->author->id, 'name' => $activity->author->name],
+                'attachment_name' => $activity->attachment?->name,
+                'created_at' => $activity->created_at->toIso8601String(),
+            ]),
         ]);
 
         $availablePhaseTemplates = $canManagePhases
@@ -194,6 +203,9 @@ class ProjectController extends Controller
             'files' => $files,
             'phases' => $phases,
             'availablePhaseTemplates' => $availablePhaseTemplates,
+            'teams' => $canManagePhases
+                ? Team::query()->orderBy('name')->get(['id', 'name'])
+                : [],
             'activePhaseId' => $activePhase?->id,
             'activities' => $activities,
             'taggableMembers' => $taggableMembers,
@@ -202,7 +214,7 @@ class ProjectController extends Controller
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
-        $project->fill($request->safe()->except('banner'));
+        $project->fill($request->safe()->except(['banner', 'remove_banner']));
 
         if ($request->hasFile('banner')) {
             if ($project->banner_path) {
@@ -210,6 +222,12 @@ class ProjectController extends Controller
             }
 
             $project->banner_path = $request->file('banner')->store('projects/banners', 'public');
+        } elseif ($request->boolean('remove_banner') && $project->banner_path) {
+            Storage::disk('public')->delete($project->banner_path);
+            $project->banner_path = null;
+            $project->banner_focal_x = 50;
+            $project->banner_focal_y = 50;
+            $project->banner_zoom = 1;
         }
 
         $project->save();
@@ -239,6 +257,45 @@ class ProjectController extends Controller
     }
 
     /**
+     * Total bytes stored under each folder, including files nested inside
+     * its subfolders - not just files placed directly in it.
+     *
+     * @param  Collection<int, Folder>  $allFolders
+     * @return array<int, int>
+     */
+    private function folderSizes(Project $project, Collection $allFolders): array
+    {
+        $directSizeByFolder = $project->files()
+            ->whereNotNull('folder_id')
+            ->selectRaw('folder_id, sum(size) as total')
+            ->groupBy('folder_id')
+            ->pluck('total', 'folder_id');
+
+        $childrenByParent = $allFolders->groupBy('parent_id');
+
+        $totals = [];
+        $totalFor = function (int $folderId) use (&$totalFor, &$totals, $childrenByParent, $directSizeByFolder) {
+            if (isset($totals[$folderId])) {
+                return $totals[$folderId];
+            }
+
+            $total = (int) ($directSizeByFolder[$folderId] ?? 0);
+
+            foreach ($childrenByParent->get($folderId, collect()) as $child) {
+                $total += $totalFor($child->id);
+            }
+
+            return $totals[$folderId] = $total;
+        };
+
+        foreach ($allFolders as $folder) {
+            $totalFor($folder->id);
+        }
+
+        return $totals;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function projectSummary(Project $project, User $user): array
@@ -248,6 +305,9 @@ class ProjectController extends Controller
             'name' => $project->name,
             'description' => $project->description,
             'banner_url' => $project->banner_path ? Storage::disk('public')->url($project->banner_path) : null,
+            'banner_focal_x' => $project->banner_focal_x,
+            'banner_focal_y' => $project->banner_focal_y,
+            'banner_zoom' => $project->banner_zoom,
             'client_name' => $project->client_name,
             'client_email' => $project->client_email,
             'client_phone' => $project->client_phone,
@@ -268,9 +328,9 @@ class ProjectController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function fileToArray(ProjectFile $file, Project $project, User $user, bool $includeFolder = false): array
+    private function fileToArray(ProjectFile $file, Project $project, User $user): array
     {
-        $data = [
+        return [
             'id' => $file->id,
             'name' => $file->name,
             'size' => $file->size,
@@ -282,11 +342,5 @@ class ProjectController extends Controller
                 'delete' => $project->isManagedBy($user),
             ],
         ];
-
-        if ($includeFolder) {
-            $data['folder'] = $file->folder ? ['id' => $file->folder->id, 'name' => $file->folder->name] : null;
-        }
-
-        return $data;
     }
 }

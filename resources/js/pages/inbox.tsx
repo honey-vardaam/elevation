@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Inbox as InboxIcon } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
 import {
     PhaseTimeline,
     statusLabel,
@@ -48,14 +49,15 @@ export default function Inbox({
         <>
             <Head title="Inbox" />
 
+            <h1 className="sr-only">Inbox</h1>
+
             <div className="flex min-w-0 flex-1">
                 <div className="w-80 shrink-0 overflow-y-auto border-r">
                     {conversations.length === 0 ? (
-                        <div className="text-muted-foreground flex flex-col items-center gap-2 p-8 text-center text-sm">
-                            <InboxIcon className="size-6" />
-                            No conversations yet. Comments and change requests
-                            posted on a project's phases will show up here.
-                        </div>
+                        <EmptyState
+                            icon={InboxIcon}
+                            message="No conversations yet. Comments and change requests posted on a project's phases will show up here."
+                        />
                     ) : (
                         conversations.map((conversation) => (
                             <button

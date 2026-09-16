@@ -21,6 +21,25 @@ class UpdateProjectRequest extends FormRequest
      */
     public function rules(): array
     {
-        return $this->projectRules();
+        return [
+            ...$this->projectRules(),
+            'remove_banner' => ['boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return $this->projectMessages();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return $this->projectAttributes();
     }
 }

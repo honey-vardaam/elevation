@@ -2,11 +2,10 @@ import { Form, Head } from '@inertiajs/react';
 import { type ChangeEvent, useState } from 'react';
 import { Building2 } from 'lucide-react';
 import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { edit, update } from '@/routes/company';
@@ -39,11 +38,7 @@ export default function CompanySettings({
             <Head title="Company" />
 
             <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Company profile"
-                    description="Shown at the end of every published portfolio."
-                />
+                <Heading variant="small" title="Company profile" />
 
                 <Form
                     {...update.form()}
@@ -64,8 +59,11 @@ export default function CompanySettings({
                                         <Building2 className="text-muted-foreground size-6" />
                                     </AvatarFallback>
                                 </Avatar>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="logo">Logo</Label>
+                                <Field
+                                    htmlFor="logo"
+                                    label="Logo"
+                                    error={errors.logo}
+                                >
                                     <Input
                                         id="logo"
                                         name="logo"
@@ -73,73 +71,89 @@ export default function CompanySettings({
                                         accept="image/*"
                                         onChange={handleLogoChange}
                                     />
-                                    <InputError message={errors.logo} />
-                                </div>
+                                </Field>
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Company name</Label>
+                            <Field
+                                htmlFor="name"
+                                label="Company name"
+                                error={errors.name}
+                            >
                                 <Input
                                     id="name"
                                     name="name"
+                                    placeholder="Your company name"
                                     defaultValue={company.name ?? ''}
                                 />
-                                <InputError message={errors.name} />
-                            </div>
+                            </Field>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="address">Address</Label>
+                            <Field
+                                htmlFor="address"
+                                label="Address"
+                                error={errors.address}
+                            >
                                 <Input
                                     id="address"
                                     name="address"
+                                    placeholder="123 Main St, Springfield"
                                     defaultValue={company.address ?? ''}
                                 />
-                                <InputError message={errors.address} />
-                            </div>
+                            </Field>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="phone">Phone</Label>
+                                <Field
+                                    htmlFor="phone"
+                                    label="Phone"
+                                    error={errors.phone}
+                                >
                                     <Input
                                         id="phone"
                                         name="phone"
+                                        placeholder="555-0142"
                                         defaultValue={company.phone ?? ''}
                                     />
-                                    <InputError message={errors.phone} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="email">Email</Label>
+                                </Field>
+                                <Field
+                                    htmlFor="email"
+                                    label="Email"
+                                    error={errors.email}
+                                >
                                     <Input
                                         id="email"
                                         name="email"
                                         type="email"
+                                        placeholder="hello@example.com"
                                         defaultValue={company.email ?? ''}
                                     />
-                                    <InputError message={errors.email} />
-                                </div>
+                                </Field>
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="website">Website</Label>
+                            <Field
+                                htmlFor="website"
+                                label="Website"
+                                error={errors.website}
+                            >
                                 <Input
                                     id="website"
                                     name="website"
                                     placeholder="https://example.com"
                                     defaultValue={company.website ?? ''}
                                 />
-                                <InputError message={errors.website} />
-                            </div>
+                            </Field>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="about">About</Label>
+                            <Field
+                                htmlFor="about"
+                                label="About"
+                                error={errors.about}
+                            >
                                 <Textarea
                                     id="about"
                                     name="about"
                                     rows={4}
+                                    placeholder="A short description of your company…"
                                     defaultValue={company.about ?? ''}
                                 />
-                                <InputError message={errors.about} />
-                            </div>
+                            </Field>
 
                             <Button type="submit" disabled={processing}>
                                 {processing && <Spinner />}

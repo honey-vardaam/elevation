@@ -13,7 +13,7 @@ export function CardLinkRow({
     return (
         <Link
             href={href}
-            className="hover:bg-chart-1/10 hover:border-chart-2/30 flex items-center justify-between gap-2 rounded-lg border p-3 text-sm transition-colors"
+            className="hover:bg-muted/50 hover:border-muted-foreground/30 flex items-center justify-between gap-2 rounded-lg border p-3 text-sm transition-colors"
         >
             <div className="min-w-0">{children}</div>
             {trailing}

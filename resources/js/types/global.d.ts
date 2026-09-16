@@ -1,5 +1,6 @@
 import type { Auth } from '@/types/auth';
 import type { DueReminder } from '@/types/calendar';
+import type { NotificationsPayload } from '@/types/notifications';
 
 declare module 'react' {
     interface InputHTMLAttributes<T> {
@@ -14,6 +15,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             dueReminders: DueReminder[];
+            notifications: NotificationsPayload;
             [key: string]: unknown;
         };
     }

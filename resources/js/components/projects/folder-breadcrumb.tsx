@@ -6,15 +6,17 @@ import type { ProjectFolderSummary } from '@/types';
 
 export function FolderBreadcrumb({
     projectId,
+    view,
     trail,
     activePhaseId,
 }: {
     projectId: number;
+    view: 'grid' | 'list';
     trail: ProjectFolderSummary[];
     activePhaseId: number | null;
 }) {
     function url(folderId?: number): string {
-        const params = new URLSearchParams({ view: 'folder' });
+        const params = new URLSearchParams({ view });
         if (folderId) {
             params.set('folder', String(folderId));
         }

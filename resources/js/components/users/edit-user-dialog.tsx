@@ -1,5 +1,5 @@
 import { Form } from '@inertiajs/react';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import PasswordInput from '@/components/password-input';
 import { UserRoleSelect } from '@/components/users/user-role-select';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { update } from '@/routes/users';
 import type { UserSummary } from '@/types';
@@ -38,62 +37,76 @@ export function EditUserDialog({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-user-name">Name</Label>
-                                <Input
-                                    id="edit-user-name"
-                                    name="name"
-                                    defaultValue={user.name}
-                                    autoFocus
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    htmlFor="edit-user-name"
+                                    label="Name"
                                     required
-                                />
-                                <InputError message={errors.name} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-user-email">Email</Label>
-                                <Input
-                                    id="edit-user-email"
-                                    name="email"
-                                    type="email"
-                                    defaultValue={user.email}
+                                    error={errors.name}
+                                >
+                                    <Input
+                                        id="edit-user-name"
+                                        name="name"
+                                        placeholder="Jane Cooper"
+                                        defaultValue={user.name}
+                                        autoFocus
+                                        required
+                                    />
+                                </Field>
+                                <Field
+                                    htmlFor="edit-user-email"
+                                    label="Email"
                                     required
-                                />
-                                <InputError message={errors.email} />
+                                    error={errors.email}
+                                >
+                                    <Input
+                                        id="edit-user-email"
+                                        name="email"
+                                        type="email"
+                                        placeholder="jane@example.com"
+                                        defaultValue={user.email}
+                                        required
+                                    />
+                                </Field>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-user-role">Role</Label>
+                            <Field
+                                htmlFor="edit-user-role"
+                                label="Role"
+                                required
+                                error={errors.role}
+                            >
                                 <UserRoleSelect
                                     name="role"
                                     defaultValue={user.role}
                                 />
-                                <InputError message={errors.role} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-user-password">
-                                    New password (leave blank to keep
-                                    current)
-                                </Label>
-                                <PasswordInput
-                                    id="edit-user-password"
-                                    name="password"
-                                />
-                                <InputError message={errors.password} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="edit-user-password-confirmation">
-                                    Confirm new password
-                                </Label>
-                                <PasswordInput
-                                    id="edit-user-password-confirmation"
-                                    name="password_confirmation"
-                                />
+                            </Field>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    htmlFor="edit-user-password"
+                                    label="New password"
+                                    error={errors.password}
+                                >
+                                    <PasswordInput
+                                        id="edit-user-password"
+                                        name="password"
+                                        placeholder="Leave blank to keep current"
+                                    />
+                                </Field>
+                                <Field
+                                    htmlFor="edit-user-password-confirmation"
+                                    label="Confirm new password"
+                                >
+                                    <PasswordInput
+                                        id="edit-user-password-confirmation"
+                                        name="password_confirmation"
+                                        placeholder="Re-enter new password"
+                                    />
+                                </Field>
                             </div>
 
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button variant="secondary">
-                                        Cancel
-                                    </Button>
+                                    <Button variant="secondary">Cancel</Button>
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
                                     {processing && <Spinner />}

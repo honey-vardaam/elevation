@@ -1,6 +1,6 @@
 import { Form } from '@inertiajs/react';
 import { useState } from 'react';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -11,7 +11,6 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { store } from '@/routes/clients';
@@ -35,76 +34,85 @@ export function NewClientDialog() {
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="new-client-name">Name</Label>
-                                <Input
-                                    id="new-client-name"
-                                    name="name"
-                                    autoFocus
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    htmlFor="new-client-name"
+                                    label="Name"
                                     required
-                                />
-                                <InputError message={errors.name} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="new-client-company">
-                                    Company
-                                </Label>
-                                <Input
-                                    id="new-client-company"
-                                    name="company"
-                                />
-                                <InputError message={errors.company} />
+                                    error={errors.name}
+                                >
+                                    <Input
+                                        id="new-client-name"
+                                        name="name"
+                                        placeholder="Jane Cooper"
+                                        autoFocus
+                                        required
+                                    />
+                                </Field>
+                                <Field
+                                    htmlFor="new-client-company"
+                                    label="Company"
+                                    error={errors.company}
+                                >
+                                    <Input
+                                        id="new-client-company"
+                                        name="company"
+                                        placeholder="Acme Inc."
+                                    />
+                                </Field>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="new-client-email">
-                                        Email
-                                    </Label>
+                                <Field
+                                    htmlFor="new-client-email"
+                                    label="Email"
+                                    error={errors.email}
+                                >
                                     <Input
                                         id="new-client-email"
                                         name="email"
                                         type="email"
+                                        placeholder="jane@example.com"
                                     />
-                                    <InputError message={errors.email} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="new-client-phone">
-                                        Phone
-                                    </Label>
+                                </Field>
+                                <Field
+                                    htmlFor="new-client-phone"
+                                    label="Phone"
+                                    error={errors.phone}
+                                >
                                     <Input
                                         id="new-client-phone"
                                         name="phone"
+                                        placeholder="555-0142"
                                     />
-                                    <InputError message={errors.phone} />
-                                </div>
+                                </Field>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="new-client-address">
-                                    Address
-                                </Label>
+                            <Field
+                                htmlFor="new-client-address"
+                                label="Address"
+                                error={errors.address}
+                            >
                                 <Input
                                     id="new-client-address"
                                     name="address"
+                                    placeholder="123 Main St, Springfield"
                                 />
-                                <InputError message={errors.address} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="new-client-notes">
-                                    Notes
-                                </Label>
+                            </Field>
+                            <Field
+                                htmlFor="new-client-notes"
+                                label="Notes"
+                                error={errors.notes}
+                            >
                                 <Textarea
                                     id="new-client-notes"
                                     name="notes"
                                     rows={3}
+                                    placeholder="Anything worth remembering about this client…"
                                 />
-                                <InputError message={errors.notes} />
-                            </div>
+                            </Field>
 
                             <DialogFooter>
                                 <DialogClose asChild>
-                                    <Button variant="secondary">
-                                        Cancel
-                                    </Button>
+                                    <Button variant="secondary">Cancel</Button>
                                 </DialogClose>
                                 <Button type="submit" disabled={processing}>
                                     {processing && <Spinner />}

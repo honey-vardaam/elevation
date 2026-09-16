@@ -1,7 +1,7 @@
 import { router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import { MoreHorizontal, Quote } from 'lucide-react';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +18,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { destroy, store, update } from '@/routes/portfolio-testimonials';
@@ -31,9 +30,7 @@ export function TestimonialManager({
     portfolioId: number;
     testimonials: PortfolioTestimonial[];
 }) {
-    const [editing, setEditing] = useState<PortfolioTestimonial | null>(
-        null,
-    );
+    const [editing, setEditing] = useState<PortfolioTestimonial | null>(null);
     const [adding, setAdding] = useState(false);
 
     function remove(testimonial: PortfolioTestimonial) {
@@ -133,18 +130,17 @@ function TestimonialFormDialog({
     onOpenChange: (open: boolean) => void;
 }) {
     const isEditing = testimonial !== null;
-    const { data, setData, post, patch, processing, errors, reset } =
-        useForm<{
-            author_name: string;
-            author_role: string;
-            quote: string;
-            photo: File | null;
-        }>({
-            author_name: testimonial?.author_name ?? '',
-            author_role: testimonial?.author_role ?? '',
-            quote: testimonial?.quote ?? '',
-            photo: null,
-        });
+    const { data, setData, post, patch, processing, errors, reset } = useForm<{
+        author_name: string;
+        author_role: string;
+        quote: string;
+        photo: File | null;
+    }>({
+        author_name: testimonial?.author_name ?? '',
+        author_role: testimonial?.author_role ?? '',
+        quote: testimonial?.quote ?? '',
+        photo: null,
+    });
 
     function handleSubmit(event: FormEvent) {
         event.preventDefault();
@@ -175,8 +171,12 @@ function TestimonialFormDialog({
                 </DialogTitle>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="testimonial-author">Name</Label>
+                        <Field
+                            htmlFor="testimonial-author"
+                            label="Name"
+                            required
+                            error={errors.author_name}
+                        >
                             <Input
                                 id="testimonial-author"
                                 value={data.author_name}
@@ -186,12 +186,12 @@ function TestimonialFormDialog({
                                 autoFocus
                                 required
                             />
-                            <InputError message={errors.author_name} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="testimonial-role">
-                                Role (optional)
-                            </Label>
+                        </Field>
+                        <Field
+                            htmlFor="testimonial-role"
+                            label="Role (optional)"
+                            error={errors.author_role}
+                        >
                             <Input
                                 id="testimonial-role"
                                 value={data.author_role}
@@ -199,39 +199,36 @@ function TestimonialFormDialog({
                                     setData('author_role', e.target.value)
                                 }
                             />
-                            <InputError message={errors.author_role} />
-                        </div>
+                        </Field>
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="testimonial-quote">Quote</Label>
+                    <Field
+                        htmlFor="testimonial-quote"
+                        label="Quote"
+                        required
+                        error={errors.quote}
+                    >
                         <Textarea
                             id="testimonial-quote"
                             rows={4}
                             value={data.quote}
-                            onChange={(e) =>
-                                setData('quote', e.target.value)
-                            }
+                            onChange={(e) => setData('quote', e.target.value)}
                             required
                         />
-                        <InputError message={errors.quote} />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="testimonial-photo">
-                            Photo (optional)
-                        </Label>
+                    </Field>
+                    <Field
+                        htmlFor="testimonial-photo"
+                        label="Photo (optional)"
+                        error={errors.photo}
+                    >
                         <Input
                             id="testimonial-photo"
                             type="file"
                             accept="image/*"
                             onChange={(e) =>
-                                setData(
-                                    'photo',
-                                    e.target.files?.[0] ?? null,
-                                )
+                                setData('photo', e.target.files?.[0] ?? null)
                             }
                         />
-                        <InputError message={errors.photo} />
-                    </div>
+                    </Field>
                     <DialogFooter>
                         <DialogClose asChild>
                             <Button variant="secondary">Cancel</Button>

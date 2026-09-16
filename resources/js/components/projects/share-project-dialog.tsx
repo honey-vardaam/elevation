@@ -1,7 +1,7 @@
 import { Form, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import { MemberRoleSelect } from '@/components/projects/member-role-select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -118,10 +117,12 @@ export function ShareProjectDialog({
                         >
                             {({ processing, errors }) => (
                                 <>
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="member-email">
-                                            Add member by email
-                                        </Label>
+                                    <Field
+                                        htmlFor="member-email"
+                                        label="Add member by email"
+                                        required
+                                        error={errors.email}
+                                    >
                                         <Input
                                             id="member-email"
                                             name="email"
@@ -129,19 +130,19 @@ export function ShareProjectDialog({
                                             placeholder="name@example.com"
                                             required
                                         />
-                                        <InputError message={errors.email} />
-                                    </div>
+                                    </Field>
 
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="member-role">
-                                            Role
-                                        </Label>
+                                    <Field
+                                        htmlFor="member-role"
+                                        label="Role"
+                                        required
+                                        error={errors.role}
+                                    >
                                         <MemberRoleSelect
                                             name="role"
                                             defaultValue="viewer"
                                         />
-                                        <InputError message={errors.role} />
-                                    </div>
+                                    </Field>
 
                                     <Button type="submit" disabled={processing}>
                                         {processing && <Spinner />}

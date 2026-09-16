@@ -19,7 +19,7 @@ export function Breadcrumbs({
         <>
             {breadcrumbs.length > 0 && (
                 <Breadcrumb>
-                    <BreadcrumbList>
+                    <BreadcrumbList className="text-base">
                         {breadcrumbs.map((item, index) => {
                             const isLast = index === breadcrumbs.length - 1;
 
@@ -27,7 +27,7 @@ export function Breadcrumbs({
                                 <Fragment key={index}>
                                     <BreadcrumbItem>
                                         {isLast ? (
-                                            <BreadcrumbPage className="font-heading text-foreground text-lg font-semibold">
+                                            <BreadcrumbPage className="font-heading text-foreground font-semibold">
                                                 {item.title}
                                             </BreadcrumbPage>
                                         ) : (

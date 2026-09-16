@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { type FormEvent, useEffect } from 'react';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -160,35 +160,39 @@ export function EventDialog({
                 </DialogDescription>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="event-title">Title</Label>
+                    <Field
+                        htmlFor="event-title"
+                        label="Title"
+                        required
+                        error={errors.title}
+                    >
                         <Input
                             id="event-title"
+                            placeholder="Site visit"
                             value={data.title}
                             onChange={(e) => setData('title', e.target.value)}
                             autoFocus
                             required
                         />
-                        <InputError message={errors.title} />
-                    </div>
+                    </Field>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="event-description">
-                            Description
-                        </Label>
+                    <Field
+                        htmlFor="event-description"
+                        label="Description"
+                        error={errors.description}
+                    >
                         <Textarea
                             id="event-description"
                             rows={2}
+                            placeholder="Add any details worth remembering…"
                             value={data.description}
                             onChange={(e) =>
                                 setData('description', e.target.value)
                             }
                         />
-                        <InputError message={errors.description} />
-                    </div>
+                    </Field>
 
-                    <div className="grid gap-2">
-                        <Label>Project (optional)</Label>
+                    <Field label="Project (optional)" error={errors.project_id}>
                         <Select
                             value={data.project_id}
                             onValueChange={(value) =>
@@ -199,9 +203,7 @@ export function EventDialog({
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="none">
-                                    No project
-                                </SelectItem>
+                                <SelectItem value="none">No project</SelectItem>
                                 {projects.map((project) => (
                                     <SelectItem
                                         key={project.id}
@@ -212,8 +214,7 @@ export function EventDialog({
                                 ))}
                             </SelectContent>
                         </Select>
-                        <InputError message={errors.project_id} />
-                    </div>
+                    </Field>
 
                     <div className="flex items-center gap-3">
                         <Checkbox
@@ -226,9 +227,19 @@ export function EventDialog({
                         <Label htmlFor="event-all-day">All day</Label>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="event-start-date">Start</Label>
+                    <div
+                        className={
+                            data.all_day
+                                ? 'grid grid-cols-1 gap-4'
+                                : 'grid grid-cols-2 gap-4'
+                        }
+                    >
+                        <Field
+                            htmlFor="event-start-date"
+                            label="Start"
+                            required
+                            error={errors.start_date}
+                        >
                             <Input
                                 id="event-start-date"
                                 type="date"
@@ -238,13 +249,13 @@ export function EventDialog({
                                 }
                                 required
                             />
-                            <InputError message={errors.start_date} />
-                        </div>
+                        </Field>
                         {!data.all_day && (
-                            <div className="grid gap-2">
-                                <Label htmlFor="event-start-time">
-                                    Start time
-                                </Label>
+                            <Field
+                                htmlFor="event-start-time"
+                                label="Start time"
+                                error={errors.start_time}
+                            >
                                 <Input
                                     id="event-start-time"
                                     type="time"
@@ -254,16 +265,22 @@ export function EventDialog({
                                     }
                                     required
                                 />
-                                <InputError message={errors.start_time} />
-                            </div>
+                            </Field>
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="event-end-date">
-                                End (optional)
-                            </Label>
+                    <div
+                        className={
+                            data.all_day
+                                ? 'grid grid-cols-1 gap-4'
+                                : 'grid grid-cols-2 gap-4'
+                        }
+                    >
+                        <Field
+                            htmlFor="event-end-date"
+                            label="End (optional)"
+                            error={errors.end_date}
+                        >
                             <Input
                                 id="event-end-date"
                                 type="date"
@@ -272,13 +289,13 @@ export function EventDialog({
                                     setData('end_date', e.target.value)
                                 }
                             />
-                            <InputError message={errors.end_date} />
-                        </div>
+                        </Field>
                         {!data.all_day && (
-                            <div className="grid gap-2">
-                                <Label htmlFor="event-end-time">
-                                    End time
-                                </Label>
+                            <Field
+                                htmlFor="event-end-time"
+                                label="End time"
+                                error={errors.end_time}
+                            >
                                 <Input
                                     id="event-end-time"
                                     type="time"
@@ -287,13 +304,14 @@ export function EventDialog({
                                         setData('end_time', e.target.value)
                                     }
                                 />
-                                <InputError message={errors.end_time} />
-                            </div>
+                            </Field>
                         )}
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label>Reminder</Label>
+                    <Field
+                        label="Reminder"
+                        error={errors.remind_minutes_before}
+                    >
                         <Select
                             value={data.remind_minutes_before}
                             onValueChange={(value) =>
@@ -314,10 +332,7 @@ export function EventDialog({
                                 ))}
                             </SelectContent>
                         </Select>
-                        <InputError
-                            message={errors.remind_minutes_before}
-                        />
-                    </div>
+                    </Field>
 
                     <DialogFooter>
                         <Button

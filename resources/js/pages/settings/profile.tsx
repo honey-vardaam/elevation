@@ -3,12 +3,11 @@ import { Link } from '@inertiajs/react';
 import { type ChangeEvent, useRef, useState } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
+import { Field } from '@/components/field';
 import Heading from '@/components/heading';
-import InputError from '@/components/input-error';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { useInitials } from '@/hooks/use-initials';
 import { edit } from '@/routes/profile';
@@ -119,11 +118,7 @@ export default function Profile({
             <h1 className="sr-only">Profile settings</h1>
 
             <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Profile"
-                    description="Update your name and email address"
-                />
+                <Heading variant="small" title="Profile" />
 
                 <AvatarSetting user={auth.user} />
 
@@ -136,43 +131,39 @@ export default function Profile({
                 >
                     {({ processing, errors }) => (
                         <>
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Name</Label>
-
-                                <Input
-                                    id="name"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.name}
-                                    name="name"
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    htmlFor="name"
+                                    label="Name"
                                     required
-                                    autoComplete="name"
-                                    placeholder="Full name"
-                                />
+                                    error={errors.name}
+                                >
+                                    <Input
+                                        id="name"
+                                        defaultValue={auth.user.name}
+                                        name="name"
+                                        required
+                                        autoComplete="name"
+                                        placeholder="Full name"
+                                    />
+                                </Field>
 
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.name}
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email address</Label>
-
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    className="mt-1 block w-full"
-                                    defaultValue={auth.user.email}
-                                    name="email"
+                                <Field
+                                    htmlFor="email"
+                                    label="Email address"
                                     required
-                                    autoComplete="username"
-                                    placeholder="Email address"
-                                />
-
-                                <InputError
-                                    className="mt-2"
-                                    message={errors.email}
-                                />
+                                    error={errors.email}
+                                >
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        defaultValue={auth.user.email}
+                                        name="email"
+                                        required
+                                        autoComplete="username"
+                                        placeholder="Email address"
+                                    />
+                                </Field>
                             </div>
 
                             {mustVerifyEmail &&

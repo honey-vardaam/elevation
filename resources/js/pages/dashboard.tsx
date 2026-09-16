@@ -1,14 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { type FormEvent, useEffect, useState } from 'react';
-import { AlertTriangle, Clock, FolderKanban, X } from 'lucide-react';
-import {
-    Label as RechartsLabel,
-    PolarAngleAxis,
-    PolarGrid,
-    PolarRadiusAxis,
-    RadialBar,
-    RadialBarChart,
-} from 'recharts';
+import { X } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
     Avatar,
     AvatarFallback,
@@ -17,6 +10,7 @@ import {
 } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import {
     Card,
     CardContent,
@@ -24,7 +18,14 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { type ChartConfig, ChartContainer } from '@/components/ui/chart';
+import {
+    type ChartConfig,
+    ChartContainer,
+    ChartLegend,
+    ChartLegendContent,
+    ChartTooltip,
+    ChartTooltipContent,
+} from '@/components/ui/chart';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,10 +36,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { CardLinkRow } from '@/components/card-link-row';
 import { projectStatusLabel } from '@/components/projects/project-status-select';
 import { useInitials } from '@/hooks/use-initials';
+import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { index as calendarIndex } from '@/routes/calendar';
 import { show as showProject } from '@/routes/projects';
@@ -103,40 +106,31 @@ function useElapsedSeconds(startedAt: string | null): number {
 }
 
 function KpiCard({
-    icon: Icon,
     label,
     value,
     tone = 'default',
 }: {
-    icon: typeof AlertTriangle;
     label: string;
     value: string;
     tone?: 'default' | 'warning';
 }) {
     return (
         <Card
-            className={`group transition-colors duration-500 ease-out ${
-                tone === 'warning' ? 'hover:bg-destructive' : 'hover:bg-chart-2'
-            }`}
+            size="sm"
+            className="hover:bg-muted/40 gap-3 transition-colors md:col-span-2"
         >
-            <CardContent className="flex items-center gap-3">
-                <div
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors duration-500 ease-out ${
-                        tone === 'warning'
-                            ? 'bg-destructive/10 text-destructive group-hover:bg-white/15 group-hover:text-white'
-                            : 'bg-muted text-muted-foreground group-hover:bg-white/15 group-hover:text-white'
-                    }`}
+            <CardContent>
+                <p className="text-muted-foreground text-xs font-medium">
+                    {label}
+                </p>
+                <p
+                    className={cn(
+                        'mt-1 text-3xl font-semibold tracking-tight',
+                        tone === 'warning' && 'text-destructive',
+                    )}
                 >
-                    <Icon className="size-5" />
-                </div>
-                <div>
-                    <p className="text-2xl font-semibold tracking-tight transition-colors duration-500 ease-out group-hover:text-white">
-                        {value}
-                    </p>
-                    <p className="text-muted-foreground text-xs transition-colors duration-500 ease-out group-hover:text-white/80">
-                        {label}
-                    </p>
-                </div>
+                    {value}
+                </p>
             </CardContent>
         </Card>
     );
@@ -190,18 +184,13 @@ function TimeTracker({
     }
 
     return (
-        <Card>
+        <Card size="sm" className="md:col-span-6">
             <CardHeader>
                 <CardTitle>Time tracker</CardTitle>
-                <CardDescription>
-                    {activeEntry
-                        ? 'Currently tracking'
-                        : 'Start tracking without leaving the dashboard.'}
-                </CardDescription>
             </CardHeader>
             <CardContent>
                 {activeEntry ? (
-                    <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="min-w-0">
                             <p className="truncate font-medium">
                                 {activeEntry.task}
@@ -210,13 +199,14 @@ function TimeTracker({
                                 {activeEntry.project.name}
                             </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="font-mono text-2xl tracking-tight tabular-nums">
+                        <div className="flex items-center gap-3">
+                            <span className="font-mono text-xl tracking-tight tabular-nums">
                                 {formatElapsed(elapsed)}
                             </span>
                             <Button
                                 type="button"
                                 variant="destructive"
+                                size="sm"
                                 onClick={handleStop}
                                 disabled={processing}
                             >
@@ -232,41 +222,41 @@ function TimeTracker({
                 ) : (
                     <form
                         onSubmit={handleStart}
-                        className="flex flex-wrap items-end gap-3"
+                        className="flex flex-wrap items-center gap-2"
                     >
-                        <div className="grid min-w-40 flex-1 gap-2">
-                            <Label htmlFor="tracker-project">Project</Label>
-                            <Select
-                                value={projectId}
-                                onValueChange={setProjectId}
+                        <Label htmlFor="tracker-project" className="sr-only">
+                            Project
+                        </Label>
+                        <Select value={projectId} onValueChange={setProjectId}>
+                            <SelectTrigger
+                                id="tracker-project"
+                                className="min-w-32 flex-1"
                             >
-                                <SelectTrigger
-                                    id="tracker-project"
-                                    className="w-full"
-                                >
-                                    <SelectValue placeholder="Select a project" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {projects.map((project) => (
-                                        <SelectItem
-                                            key={project.id}
-                                            value={String(project.id)}
-                                        >
-                                            {project.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid min-w-48 flex-[2] gap-2">
-                            <Label htmlFor="tracker-task">Task</Label>
-                            <Input
-                                id="tracker-task"
-                                value={task}
-                                onChange={(e) => setTask(e.target.value)}
-                                placeholder="What are you working on?"
-                            />
-                        </div>
+                                <SelectValue placeholder="Project" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {projects.map((project) => (
+                                    <SelectItem
+                                        key={project.id}
+                                        value={String(project.id)}
+                                    >
+                                        {project.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Label htmlFor="tracker-task" className="sr-only">
+                            Task
+                        </Label>
+                        <Input
+                            id="tracker-task"
+                            value={task}
+                            onChange={(e) => setTask(e.target.value)}
+                            placeholder="What are you working on?"
+                            className="min-w-40 flex-[2]"
+                        />
+
                         <Button
                             type="submit"
                             disabled={processing || !projectId || !task.trim()}
@@ -283,23 +273,21 @@ function TimeTracker({
 
 function AllottedProjects({ projects }: { projects: AllottedProject[] }) {
     const getInitials = useInitials();
+    const visible = projects.slice(0, 3);
 
     return (
-        <Card>
+        <Card size="sm" className="md:col-span-2">
             <CardHeader>
                 <CardTitle>Allotted projects</CardTitle>
-                <CardDescription>
-                    Jump straight into your active work.
-                </CardDescription>
             </CardHeader>
             <CardContent>
-                {projects.length === 0 ? (
+                {visible.length === 0 ? (
                     <p className="text-muted-foreground text-sm">
                         No projects yet.
                     </p>
                 ) : (
                     <div className="space-y-2">
-                        {projects.map((project) => (
+                        {visible.map((project) => (
                             <CardLinkRow
                                 key={project.id}
                                 href={showProject(project.id).url}
@@ -327,12 +315,17 @@ function AllottedProjects({ projects }: { projects: AllottedProject[] }) {
                                     </AvatarGroup>
                                 }
                             >
-                                <p className="truncate font-medium">
-                                    {project.name}
-                                </p>
-                                <Badge variant="outline" className="mt-1">
-                                    {projectStatusLabel(project.status)}
-                                </Badge>
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <p className="truncate font-medium">
+                                        {project.name}
+                                    </p>
+                                    <Badge
+                                        variant="outline"
+                                        className="shrink-0"
+                                    >
+                                        {projectStatusLabel(project.status)}
+                                    </Badge>
+                                </div>
                             </CardLinkRow>
                         ))}
                     </div>
@@ -344,7 +337,7 @@ function AllottedProjects({ projects }: { projects: AllottedProject[] }) {
 
 function Reminders({ reminders }: { reminders: ReminderItem[] }) {
     return (
-        <Card>
+        <Card size="sm" className="md:col-span-2">
             <CardHeader>
                 <CardTitle>Reminders</CardTitle>
                 <CardDescription>
@@ -392,83 +385,6 @@ function Reminders({ reminders }: { reminders: ReminderItem[] }) {
     );
 }
 
-function intensityClass(hours: number, maxHours: number): string {
-    if (hours <= 0) {
-        return 'bg-muted';
-    }
-
-    const ratio = hours / maxHours;
-
-    if (ratio > 0.75) {
-        return 'bg-chart-5';
-    }
-    if (ratio > 0.5) {
-        return 'bg-chart-4';
-    }
-    if (ratio > 0.25) {
-        return 'bg-chart-3';
-    }
-
-    return 'bg-chart-2';
-}
-
-function WeeklyActivity({ days }: { days: WeeklyActivityDay[] }) {
-    const [hovered, setHovered] = useState<string | null>(null);
-    const maxHours = Math.max(1, ...days.map((day) => day.hours));
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Weekly activity</CardTitle>
-                <CardDescription>
-                    Your work over the last 7 days.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-end justify-between gap-2">
-                    {days.map((day) => (
-                        <div
-                            key={day.date}
-                            className="relative flex flex-1 flex-col items-center gap-2"
-                            onMouseEnter={() => setHovered(day.date)}
-                            onMouseLeave={() =>
-                                setHovered((current) =>
-                                    current === day.date ? null : current,
-                                )
-                            }
-                        >
-                            {hovered === day.date && (
-                                <div className="bg-popover text-popover-foreground absolute bottom-full z-10 mb-2 w-max max-w-40 rounded-lg border p-2 text-xs shadow-md">
-                                    <p className="font-medium">
-                                        {day.hours}h tracked
-                                    </p>
-                                    <p className="text-muted-foreground">
-                                        {day.tasks_completed} tasks completed
-                                    </p>
-                                    <p className="text-muted-foreground">
-                                        {day.work_items} work items
-                                    </p>
-                                </div>
-                            )}
-                            <div className="flex h-24 w-full items-end">
-                                <div
-                                    className={`w-full rounded-t-md transition-[height,background-color] duration-300 ${intensityClass(day.hours, maxHours)}`}
-                                    style={{
-                                        height: `${Math.max(8, (day.hours / maxHours) * 100)}%`,
-                                    }}
-                                />
-                            </div>
-                            <span className="text-muted-foreground text-xs">
-                                {day.label}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
 function Tasks({ tasks }: { tasks: TaskItem[] }) {
     const [title, setTitle] = useState('');
     const [processing, setProcessing] = useState(false);
@@ -505,7 +421,7 @@ function Tasks({ tasks }: { tasks: TaskItem[] }) {
     }
 
     return (
-        <Card>
+        <Card size="sm" className="md:col-span-2">
             <CardHeader>
                 <CardTitle>Tasks</CardTitle>
                 <CardDescription>Your personal to-dos.</CardDescription>
@@ -535,11 +451,11 @@ function Tasks({ tasks }: { tasks: TaskItem[] }) {
                         No tasks yet.
                     </p>
                 ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                         {tasks.map((task) => (
                             <div
                                 key={task.id}
-                                className="group flex items-center gap-3 rounded-lg p-2 text-sm"
+                                className="group flex items-center gap-3 rounded-lg px-2 py-1 text-sm"
                             >
                                 <Checkbox
                                     checked={task.is_completed}
@@ -616,7 +532,7 @@ function StatusDonut({
     let cumulative = 0;
 
     return (
-        <Card>
+        <Card size="sm" className="md:col-span-2">
             <CardHeader>
                 <CardTitle>Project status</CardTitle>
                 <CardDescription>
@@ -711,95 +627,108 @@ function StatusDonut({
     );
 }
 
-const progressChartConfig = {
-    progress: {
-        label: 'Progress',
+const weeklyHoursChartConfig = {
+    hours: {
+        label: 'Hours',
         color: 'var(--chart-1)',
     },
 } satisfies ChartConfig;
 
-function ProjectProgress({ progress }: { progress: number }) {
-    const chartData = [
-        { name: 'progress', value: progress, fill: 'var(--color-progress)' },
-    ];
+function WeeklyHoursChart({ days }: { days: WeeklyActivityDay[] }) {
+    const total = days.reduce((sum, d) => sum + d.hours, 0);
 
     return (
-        <Card>
+        <Card size="sm" className="md:col-span-2">
             <CardHeader>
-                <CardTitle>Project progress</CardTitle>
+                <CardTitle>Hours this week</CardTitle>
                 <CardDescription>
-                    Phases completed across your projects.
+                    {total.toFixed(1)}h logged across the last 7 days.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <ChartContainer
-                    config={progressChartConfig}
-                    className="mx-auto aspect-[2/1] max-h-40"
+                    config={weeklyHoursChartConfig}
+                    className="aspect-auto h-36 w-full"
                 >
-                    <RadialBarChart
-                        data={chartData}
-                        startAngle={180}
-                        endAngle={0}
-                        innerRadius={70}
-                        outerRadius={100}
-                    >
-                        <PolarAngleAxis
-                            type="number"
-                            domain={[0, 100]}
-                            tick={false}
-                            axisLine={false}
-                        />
-                        <PolarGrid
-                            gridType="circle"
-                            radialLines={false}
-                            stroke="none"
-                            className="first:fill-muted last:fill-background"
-                            polarRadius={[78, 62]}
-                        />
-                        <RadialBar
-                            dataKey="value"
-                            background
-                            cornerRadius={10}
-                        />
-                        <PolarRadiusAxis
-                            tick={false}
+                    <BarChart data={days}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis
+                            dataKey="label"
                             tickLine={false}
                             axisLine={false}
-                        >
-                            <RechartsLabel
-                                content={({ viewBox }) => {
-                                    if (
-                                        viewBox &&
-                                        'cx' in viewBox &&
-                                        'cy' in viewBox
-                                    ) {
-                                        return (
-                                            <text
-                                                x={viewBox.cx}
-                                                y={viewBox.cy}
-                                                textAnchor="middle"
-                                            >
-                                                <tspan
-                                                    x={viewBox.cx}
-                                                    y={(viewBox.cy ?? 0) - 6}
-                                                    className="fill-foreground text-3xl font-bold"
-                                                >
-                                                    {progress}%
-                                                </tspan>
-                                                <tspan
-                                                    x={viewBox.cx}
-                                                    y={(viewBox.cy ?? 0) + 16}
-                                                    className="fill-muted-foreground text-xs"
-                                                >
-                                                    Complete
-                                                </tspan>
-                                            </text>
-                                        );
-                                    }
-                                }}
-                            />
-                        </PolarRadiusAxis>
-                    </RadialBarChart>
+                            tickMargin={8}
+                        />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent />}
+                        />
+                        <Bar
+                            dataKey="hours"
+                            fill="var(--color-hours)"
+                            radius={4}
+                        />
+                    </BarChart>
+                </ChartContainer>
+            </CardContent>
+        </Card>
+    );
+}
+
+const weeklyOutputChartConfig = {
+    tasks_completed: {
+        label: 'Tasks completed',
+        color: 'var(--chart-2)',
+    },
+    work_items: {
+        label: 'Phase activity',
+        color: 'var(--chart-3)',
+    },
+} satisfies ChartConfig;
+
+function WeeklyOutputChart({ days }: { days: WeeklyActivityDay[] }) {
+    return (
+        <Card size="sm" className="md:col-span-6">
+            <CardHeader>
+                <CardTitle>Weekly output</CardTitle>
+                <CardDescription>
+                    Tasks completed vs. phase activity, day by day.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ChartContainer
+                    config={weeklyOutputChartConfig}
+                    className="aspect-auto h-52 w-full"
+                >
+                    <BarChart data={days}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis
+                            dataKey="label"
+                            tickLine={false}
+                            axisLine={false}
+                            tickMargin={8}
+                        />
+                        <YAxis
+                            tickLine={false}
+                            axisLine={false}
+                            allowDecimals={false}
+                            width={24}
+                        />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent />}
+                        />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar
+                            dataKey="tasks_completed"
+                            fill="var(--color-tasks_completed)"
+                            radius={4}
+                        />
+                        <Bar
+                            dataKey="work_items"
+                            fill="var(--color-work_items)"
+                            radius={4}
+                        />
+                    </BarChart>
                 </ChartContainer>
             </CardContent>
         </Card>
@@ -808,7 +737,7 @@ function ProjectProgress({ progress }: { progress: number }) {
 
 function NeedsAttention({ items }: { items: AttentionPhase[] }) {
     return (
-        <Card>
+        <Card size="sm" className="md:col-span-2">
             <CardHeader>
                 <CardTitle>Needs your attention</CardTitle>
                 <CardDescription>
@@ -850,29 +779,63 @@ function NeedsAttention({ items }: { items: AttentionPhase[] }) {
     );
 }
 
-function RecentActivity({ items }: { items: RecentActivityItem[] }) {
+function monthKey(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function DashboardCalendar({
+    reminders,
+    activity,
+}: {
+    reminders: ReminderItem[];
+    activity: RecentActivityItem[];
+}) {
     const getInitials = useInitials();
+    const [month, setMonth] = useState(new Date());
+    const eventDays = reminders.map((r) => new Date(r.start_at));
+
+    function goToDay(day: Date | undefined) {
+        if (!day) {
+            return;
+        }
+
+        router.get(calendarIndex({ query: { month: monthKey(day) } }).url);
+    }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Recent activity</CardTitle>
-                <CardDescription>
-                    What's been happening across your projects.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {items.length === 0 ? (
+        <Card className="flex h-full flex-col gap-0 py-0">
+            <div data-slot="card-content" className="shrink-0">
+                <Calendar
+                    mode="single"
+                    month={month}
+                    onMonthChange={setMonth}
+                    onSelect={goToDay}
+                    modifiers={{ hasEvent: eventDays }}
+                    modifiersClassNames={{
+                        hasEvent:
+                            'after:absolute after:bottom-1 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full after:bg-primary',
+                    }}
+                    className="w-full"
+                />
+            </div>
+
+            <Separator className="mx-0" />
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                <p className="text-muted-foreground mb-2 text-xs font-medium">
+                    Recent activity
+                </p>
+                {activity.length === 0 ? (
                     <p className="text-muted-foreground text-sm">
                         No activity yet.
                     </p>
                 ) : (
-                    <div className="space-y-3">
-                        {items.map((item) => (
+                    <div className="space-y-1">
+                        {activity.map((item) => (
                             <Link
                                 key={item.id}
                                 href={`${showProject(item.project.id).url}?panel=${item.phase.id}`}
-                                className="hover:bg-chart-1/10 flex items-start gap-3 rounded-lg p-2 text-sm transition-colors"
+                                className="hover:bg-muted/50 flex items-start gap-2.5 rounded-lg p-1.5 text-sm transition-colors"
                             >
                                 <Avatar size="sm" className="mt-0.5 shrink-0">
                                     <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
@@ -890,7 +853,6 @@ function RecentActivity({ items }: { items: RecentActivityItem[] }) {
                                     </p>
                                     <p className="text-muted-foreground truncate text-xs">
                                         {item.project.name} &middot;{' '}
-                                        {item.phase.name} &middot;{' '}
                                         {formatDateTime(item.created_at)}
                                     </p>
                                 </div>
@@ -898,7 +860,7 @@ function RecentActivity({ items }: { items: RecentActivityItem[] }) {
                         ))}
                     </div>
                 )}
-            </CardContent>
+            </div>
         </Card>
     );
 }
@@ -914,7 +876,6 @@ export default function Dashboard({
     tasks,
     allottedProjects,
     weeklyActivity,
-    projectProgress,
 }: {
     statusCounts: DashboardStatusCounts;
     openChangeRequestsTotal: number;
@@ -926,56 +887,51 @@ export default function Dashboard({
     tasks: TaskItem[];
     allottedProjects: AllottedProject[];
     weeklyActivity: WeeklyActivityDay[];
-    projectProgress: number;
 }) {
     return (
         <>
             <Head title="Dashboard" />
 
-            <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="grid gap-4 sm:grid-cols-3">
+            <div className="flex flex-1 flex-col gap-4 p-4 lg:flex-row lg:items-start">
+                <div className="grid flex-1 gap-4 md:grid-cols-6">
                     <KpiCard
-                        icon={Clock}
                         label="Hours today"
                         value={`${hoursTrackedToday}h`}
                     />
                     <KpiCard
-                        icon={FolderKanban}
                         label="Active projects"
                         value={String(statusCounts.ongoing)}
                     />
                     <KpiCard
-                        icon={AlertTriangle}
                         label="Open change requests"
                         value={String(openChangeRequestsTotal)}
                         tone={
                             openChangeRequestsTotal > 0 ? 'warning' : 'default'
                         }
                     />
-                </div>
 
-                <TimeTracker
-                    activeEntry={activeTimeEntry}
-                    projects={allottedProjects}
-                />
+                    <TimeTracker
+                        activeEntry={activeTimeEntry}
+                        projects={allottedProjects}
+                    />
 
-                <div className="grid gap-4 lg:grid-cols-2">
                     <AllottedProjects projects={allottedProjects} />
-                    <Reminders reminders={reminders} />
-                </div>
-
-                <div className="grid gap-4 lg:grid-cols-2">
-                    <WeeklyActivity days={weeklyActivity} />
                     <Tasks tasks={tasks} />
-                </div>
+                    <Reminders reminders={reminders} />
 
-                <div className="grid gap-4 lg:grid-cols-3">
                     <NeedsAttention items={needsAttention} />
                     <StatusDonut statusCounts={statusCounts} />
-                    <ProjectProgress progress={projectProgress} />
+                    <WeeklyHoursChart days={weeklyActivity} />
+
+                    <WeeklyOutputChart days={weeklyActivity} />
                 </div>
 
-                <RecentActivity items={recentActivity} />
+                <aside className="w-full lg:sticky lg:top-4 lg:h-[calc(100svh-2rem)] lg:w-72 lg:shrink-0 xl:w-80">
+                    <DashboardCalendar
+                        reminders={reminders}
+                        activity={recentActivity}
+                    />
+                </aside>
             </div>
         </>
     );

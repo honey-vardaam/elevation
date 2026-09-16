@@ -1,16 +1,10 @@
-import { Form } from '@inertiajs/react';
 import { useState } from 'react';
 import { CalendarDays, Trash2 } from 'lucide-react';
 import { EventDialog } from '@/components/calendar/event-dialog';
+import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
+import { EmptyState } from '@/components/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import {
     Sheet,
     SheetContent,
@@ -19,7 +13,6 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/components/ui/sheet';
-import { Spinner } from '@/components/ui/spinner';
 import { destroy } from '@/routes/calendar-events';
 import type { CalendarEventSummary, CalendarProjectOption } from '@/types';
 
@@ -36,9 +29,7 @@ export function DaySheet({
 }) {
     const [editing, setEditing] = useState<CalendarEventSummary | null>(null);
     const [creating, setCreating] = useState(false);
-    const [deleting, setDeleting] = useState<CalendarEventSummary | null>(
-        null,
-    );
+    const [deleting, setDeleting] = useState<CalendarEventSummary | null>(null);
 
     const label = date
         ? new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
@@ -61,12 +52,10 @@ export function DaySheet({
 
                     <div className="flex-1 space-y-3 overflow-y-auto px-6">
                         {events.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-8 text-center">
-                                <CalendarDays className="text-muted-foreground size-6" />
-                                <p className="text-muted-foreground text-sm">
-                                    No events yet.
-                                </p>
-                            </div>
+                            <EmptyState
+                                icon={CalendarDays}
+                                message="No events yet."
+                            />
                         ) : (
                             events.map((event) => (
                                 <div
@@ -83,13 +72,10 @@ export function DaySheet({
                                                     ? 'All day'
                                                     : new Date(
                                                           event.start_at,
-                                                      ).toLocaleTimeString(
-                                                          [],
-                                                          {
-                                                              hour: 'numeric',
-                                                              minute: '2-digit',
-                                                          },
-                                                      )}
+                                                      ).toLocaleTimeString([], {
+                                                          hour: 'numeric',
+                                                          minute: '2-digit',
+                                                      })}
                                             </p>
                                         </div>
                                         <div className="flex shrink-0 gap-1">
@@ -156,43 +142,23 @@ export function DaySheet({
                 projects={projects}
             />
 
-            <Dialog
+            <ConfirmDeleteDialog
                 open={deleting !== null}
                 onOpenChange={(open) => !open && setDeleting(null)}
-            >
-                <DialogContent>
-                    <DialogTitle>Delete event?</DialogTitle>
-                    <p className="text-muted-foreground text-sm">
+                title="Delete event?"
+                description={
+                    <>
                         This permanently removes{' '}
                         <span className="text-foreground font-medium">
                             {deleting?.title}
                         </span>
                         . This cannot be undone.
-                    </p>
-                    <DialogFooter>
-                        <DialogClose asChild>
-                            <Button variant="secondary">Cancel</Button>
-                        </DialogClose>
-                        {deleting && (
-                            <Form
-                                {...destroy.form(deleting.id)}
-                                onSuccess={() => setDeleting(null)}
-                            >
-                                {({ processing }) => (
-                                    <Button
-                                        type="submit"
-                                        variant="destructive"
-                                        disabled={processing}
-                                    >
-                                        {processing && <Spinner />}
-                                        Delete event
-                                    </Button>
-                                )}
-                            </Form>
-                        )}
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </>
+                }
+                confirmLabel="Delete event"
+                formAction={deleting ? destroy.form(deleting.id) : undefined}
+                onSuccess={() => setDeleting(null)}
+            />
         </>
     );
 }

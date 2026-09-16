@@ -55,7 +55,11 @@ export function SharePanel({
     return (
         <div className="space-y-3">
             <div className="flex gap-2">
-                <Input value={shareUrl} readOnly className="font-mono text-xs" />
+                <Input
+                    value={shareUrl}
+                    readOnly
+                    className="font-mono text-xs"
+                />
                 <Button type="button" variant="outline" onClick={copyLink}>
                     {copied ? (
                         <Check className="size-4" />
@@ -67,8 +71,17 @@ export function SharePanel({
             </div>
             <div className="flex flex-wrap gap-2">
                 {links.map((link) => (
-                    <Button key={link.label} variant="outline" size="sm" asChild>
-                        <a href={link.href} target="_blank" rel="noopener noreferrer">
+                    <Button
+                        key={link.label}
+                        variant="outline"
+                        size="sm"
+                        asChild
+                    >
+                        <a
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
                             <link.icon className="size-4" />
                             {link.label}
                         </a>

@@ -1,6 +1,8 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { ExternalLink, Trash2 } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
 import { GalleryManager } from '@/components/portfolio/gallery-manager';
 import { HeroEditor } from '@/components/portfolio/hero-editor';
 import { SectionList } from '@/components/portfolio/section-list';
@@ -10,15 +12,6 @@ import { StatsStrip } from '@/components/portfolio/stats-strip';
 import { TestimonialManager } from '@/components/portfolio/testimonial-manager';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
-import { Spinner } from '@/components/ui/spinner';
 import { destroy, index, show } from '@/routes/portfolios';
 import type {
     CompanyProfile,
@@ -47,16 +40,21 @@ export default function Show({
     pins: PortfolioMapPin[];
     company: CompanyProfile;
 }) {
+    const [deleting, setDeleting] = useState(false);
+
     const galleryVisible = sections.some(
         (s) => s.type === 'gallery' && s.is_visible,
     );
     const testimonialsVisible = sections.some(
         (s) => s.type === 'testimonials' && s.is_visible,
     );
+    const pageTitle = portfolio.title ?? `${portfolio.year} Portfolio`;
 
     return (
         <>
-            <Head title={portfolio.title ?? `${portfolio.year} Portfolio`} />
+            <Head title={pageTitle} />
+
+            <h1 className="sr-only">{pageTitle}</h1>
 
             <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
@@ -75,39 +73,25 @@ export default function Show({
                         <span />
                     )}
 
-                    <Dialog>
-                        <DialogTrigger asChild>
+                    <ConfirmDeleteDialog
+                        open={deleting}
+                        onOpenChange={setDeleting}
+                        trigger={
                             <Button variant="ghost" size="sm">
                                 <Trash2 className="size-4" />
                                 Delete portfolio
                             </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogTitle>Delete this portfolio?</DialogTitle>
-                            <p className="text-muted-foreground text-sm">
+                        }
+                        title="Delete this portfolio?"
+                        description={
+                            <>
                                 This permanently removes the {portfolio.year}{' '}
                                 portfolio, its gallery, and its testimonials.
                                 This cannot be undone.
-                            </p>
-                            <DialogFooter>
-                                <DialogClose asChild>
-                                    <Button variant="secondary">Cancel</Button>
-                                </DialogClose>
-                                <Form {...destroy.form(portfolio.id)}>
-                                    {({ processing }) => (
-                                        <Button
-                                            type="submit"
-                                            variant="destructive"
-                                            disabled={processing}
-                                        >
-                                            {processing && <Spinner />}
-                                            Delete
-                                        </Button>
-                                    )}
-                                </Form>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
+                            </>
+                        }
+                        formAction={destroy.form(portfolio.id)}
+                    />
                 </div>
 
                 <Card>
@@ -124,10 +108,7 @@ export default function Show({
                         <CardContent>
                             <SharePanel
                                 shareUrl={portfolio.share_url}
-                                title={
-                                    portfolio.title ??
-                                    `${portfolio.year} Portfolio`
-                                }
+                                title={pageTitle}
                             />
                         </CardContent>
                     </Card>

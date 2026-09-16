@@ -60,7 +60,7 @@ class DashboardController extends Controller
         $recentActivity = PhaseActivity::whereIn('project_phase_id', $accessiblePhaseIds)
             ->with(['author:id,name', 'projectPhase:id,name,project_id', 'projectPhase.project:id,name'])
             ->latest()
-            ->limit(6)
+            ->limit(20)
             ->get()
             ->map(fn (PhaseActivity $activity) => [
                 'id' => $activity->id,
@@ -156,9 +156,31 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        $totalPhases = ProjectPhase::whereIn('id', $accessiblePhaseIds)->count();
-        $completedPhases = ProjectPhase::whereIn('id', $accessiblePhaseIds)->where('status', ProjectPhaseStatus::Completed)->count();
-        $projectProgress = $totalPhases > 0 ? (int) round($completedPhases / $totalPhases * 100) : 0;
+        $previousWeekStart = today()->subDays(13)->startOfDay();
+        $previousWeekEnd = today()->subDays(7)->endOfDay();
+
+        $previousWeekHours = round(TimeEntry::query()
+            ->where('user_id', $user->id)
+            ->whereBetween('started_at', [$previousWeekStart, $previousWeekEnd])
+            ->get()
+            ->sum(fn (TimeEntry $entry) => $entry->durationInSeconds()) / 3600, 1);
+
+        $previousWeekTasksCompleted = Task::query()
+            ->where('user_id', $user->id)
+            ->whereBetween('completed_at', [$previousWeekStart, $previousWeekEnd])
+            ->count();
+
+        $previousWeekWorkItems = PhaseActivity::whereIn('project_phase_id', $accessiblePhaseIds)
+            ->whereBetween('created_at', [$previousWeekStart, $previousWeekEnd])
+            ->count();
+
+        $weeklyComparison = [
+            'hours_delta_pct' => $previousWeekHours > 0
+                ? (int) round((($weeklyActivity->sum('hours') - $previousWeekHours) / $previousWeekHours) * 100)
+                : null,
+            'tasks_delta' => $weeklyActivity->sum('tasks_completed') - $previousWeekTasksCompleted,
+            'work_items_delta' => $weeklyActivity->sum('work_items') - $previousWeekWorkItems,
+        ];
 
         $isOwner = $user->isOwner();
 
@@ -178,7 +200,7 @@ class DashboardController extends Controller
             'tasks' => $tasks,
             'allottedProjects' => $allottedProjects,
             'weeklyActivity' => $weeklyActivity,
-            'projectProgress' => $projectProgress,
+            'weeklyComparison' => $weeklyComparison,
             'isOwner' => $isOwner,
             'ownerStats' => $isOwner ? [
                 'clientsCount' => Client::query()->count(),

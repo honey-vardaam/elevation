@@ -26,6 +26,7 @@ class UpdateProjectPhaseRequest extends FormRequest
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'team_id' => ['nullable', 'integer', 'exists:teams,id'],
         ];
     }
 }

@@ -33,6 +33,7 @@ import { index as portfoliosIndex } from '@/routes/portfolios';
 import { edit as editProfile } from '@/routes/profile';
 import { index as projectsIndex } from '@/routes/projects';
 import { edit as editSecurity } from '@/routes/security';
+import { index as teamsIndex } from '@/routes/teams';
 import { index as usersIndex } from '@/routes/users';
 import type { NavItem } from '@/types';
 
@@ -92,8 +93,12 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
                               href: editCompany(),
                           },
                           {
-                              title: 'Phase Templates',
+                              title: 'Project Setup',
                               href: phaseTemplatesIndex(),
+                          },
+                          {
+                              title: 'Teams',
+                              href: teamsIndex(),
                           },
                       ]
                     : []),

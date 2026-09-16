@@ -59,6 +59,12 @@ export type WeeklyActivityDay = {
     work_items: number;
 };
 
+export type WeeklyComparison = {
+    hours_delta_pct: number | null;
+    tasks_delta: number;
+    work_items_delta: number;
+};
+
 export type OwnerStats = {
     clientsCount: number;
     teamCount: number;

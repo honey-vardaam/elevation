@@ -1,6 +1,6 @@
 import { useForm } from '@inertiajs/react';
 import { type ChangeEvent, type FormEvent, useState } from 'react';
-import InputError from '@/components/input-error';
+import { Field } from '@/components/field';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -45,13 +45,18 @@ export function HeroEditor({ portfolio }: { portfolio: PortfolioDetail }) {
                 <h2 className="text-xl font-semibold">
                     {portfolio.year} Portfolio
                 </h2>
-                <Badge variant={portfolio.is_published ? 'default' : 'secondary'}>
+                <Badge
+                    variant={portfolio.is_published ? 'default' : 'secondary'}
+                >
                     {portfolio.is_published ? 'Published' : 'Draft'}
                 </Badge>
             </div>
 
-            <div className="grid gap-2">
-                <Label htmlFor="hero-image">Hero image</Label>
+            <Field
+                htmlFor="hero-image"
+                label="Hero image"
+                error={errors.hero_image}
+            >
                 {preview && (
                     <img
                         src={preview}
@@ -65,29 +70,24 @@ export function HeroEditor({ portfolio }: { portfolio: PortfolioDetail }) {
                     accept="image/*"
                     onChange={handleImageChange}
                 />
-                <InputError message={errors.hero_image} />
-            </div>
+            </Field>
 
-            <div className="grid gap-2">
-                <Label htmlFor="portfolio-title">Title</Label>
+            <Field htmlFor="portfolio-title" label="Title" error={errors.title}>
                 <Input
                     id="portfolio-title"
                     value={data.title}
                     onChange={(e) => setData('title', e.target.value)}
                 />
-                <InputError message={errors.title} />
-            </div>
+            </Field>
 
-            <div className="grid gap-2">
-                <Label htmlFor="portfolio-intro">Intro</Label>
+            <Field htmlFor="portfolio-intro" label="Intro" error={errors.intro}>
                 <Textarea
                     id="portfolio-intro"
                     rows={3}
                     value={data.intro}
                     onChange={(e) => setData('intro', e.target.value)}
                 />
-                <InputError message={errors.intro} />
-            </div>
+            </Field>
 
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
