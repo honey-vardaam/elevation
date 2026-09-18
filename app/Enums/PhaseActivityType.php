@@ -6,7 +6,6 @@ enum PhaseActivityType: string
 {
     case Comment = 'comment';
     case ChangeRequest = 'change_request';
-    case Review = 'review';
     case StatusChanged = 'status_changed';
     case Approved = 'approved';
     case ProjectCompleted = 'project_completed';
@@ -15,8 +14,7 @@ enum PhaseActivityType: string
     {
         return match ($this) {
             self::Comment => 'Comment',
-            self::ChangeRequest => 'Change Requested',
-            self::Review => 'Review',
+            self::ChangeRequest => 'Request',
             self::StatusChanged => 'Status Changed',
             self::Approved => 'Approved',
             self::ProjectCompleted => 'Project Completed',
@@ -31,7 +29,7 @@ enum PhaseActivityType: string
     {
         return match ($this) {
             self::StatusChanged, self::Approved, self::ProjectCompleted => true,
-            self::Comment, self::ChangeRequest, self::Review => false,
+            self::Comment, self::ChangeRequest => false,
         };
     }
 }

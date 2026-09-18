@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProjectPhaseStatus;
 use App\Enums\ProjectRole;
 use App\Enums\ProjectStatus;
 use App\Enums\ProjectType;
@@ -34,13 +35,16 @@ use Illuminate\Support\Carbon;
  * @property ProjectStatus $status
  * @property ProjectType|null $type
  * @property int $owner_id
+ * @property int|null $phase_flow_template_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User $owner
+ * @property-read PhaseFlowTemplate|null $phaseFlowTemplate
  * @property-read Collection<int, ProjectMember> $members
  * @property-read Collection<int, Folder> $folders
  * @property-read Collection<int, ProjectFile> $files
  * @property-read Collection<int, ProjectPhase> $phases
+ * @property-read Collection<int, ProjectActivity> $activities
  */
 #[Fillable([
     'name',
@@ -59,6 +63,7 @@ use Illuminate\Support\Carbon;
     'type',
     'latitude',
     'longitude',
+    'phase_flow_template_id',
 ])]
 class Project extends Model
 {
@@ -104,6 +109,11 @@ class Project extends Model
         return $this->belongsTo(User::class, 'owner_id');
     }
 
+    public function phaseFlowTemplate(): BelongsTo
+    {
+        return $this->belongsTo(PhaseFlowTemplate::class);
+    }
+
     public function members(): HasMany
     {
         return $this->hasMany(ProjectMember::class);
@@ -122,6 +132,27 @@ class Project extends Model
     public function phases(): HasMany
     {
         return $this->hasMany(ProjectPhase::class)->orderBy('sort_order');
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(ProjectActivity::class);
+    }
+
+    public function comparisons(): HasMany
+    {
+        return $this->hasMany(Comparison::class);
+    }
+
+    /**
+     * The phase currently driving the project: the first in-progress phase,
+     * else the first pending phase if the pipeline hasn't started yet, else
+     * null once every phase is completed (or there are no phases at all).
+     */
+    public function currentPhase(): ?ProjectPhase
+    {
+        return $this->phases()->where('status', ProjectPhaseStatus::InProgress)->first()
+            ?? $this->phases()->where('status', ProjectPhaseStatus::Pending)->first();
     }
 
     /**
@@ -152,6 +183,30 @@ class Project extends Model
             $phase = new ProjectPhase(['name' => $template->name]);
             $phase->project_id = $this->id;
             $phase->phase_template_id = $template->id;
+            $phase->sort_order = $index;
+            $phase->save();
+        }
+    }
+
+    /**
+     * Copy the given flow's steps onto this project as its own trackable
+     * phases, in the flow's chain order - later edits to the flow don't
+     * retroactively change projects that already adopted it. No-ops if the
+     * flow isn't a single connected chain (the UI only ever offers ready
+     * flows; this is a defensive fallback).
+     */
+    public function seedPhasesFromFlow(PhaseFlowTemplate $flow): void
+    {
+        $steps = $flow->orderedSteps();
+
+        if ($steps === null) {
+            return;
+        }
+
+        foreach ($steps->values() as $index => $step) {
+            $phase = new ProjectPhase(['name' => $step->name]);
+            $phase->project_id = $this->id;
+            $phase->phase_template_id = $step->id;
             $phase->sort_order = $index;
             $phase->save();
         }

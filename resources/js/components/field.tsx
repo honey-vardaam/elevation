@@ -23,15 +23,17 @@ export function Field({
         <div className={cn('grid gap-2', className)}>
             {label && (
                 <Label htmlFor={htmlFor}>
-                    {label}
-                    {required && (
-                        <span
-                            className="text-destructive ml-0.5"
-                            aria-hidden="true"
-                        >
-                            *
-                        </span>
-                    )}
+                    <span>
+                        {label}
+                        {required && (
+                            <span
+                                className="text-destructive ml-0.5"
+                                aria-hidden="true"
+                            >
+                                *
+                            </span>
+                        )}
+                    </span>
                 </Label>
             )}
             {children}

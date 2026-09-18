@@ -17,6 +17,7 @@ class PhaseActivityNotification extends Notification
         private readonly ProjectPhase $phase,
         private readonly User $actor,
         private readonly string $message,
+        private readonly string $type,
     ) {}
 
     /**
@@ -39,6 +40,7 @@ class PhaseActivityNotification extends Notification
             'phase_name' => $this->phase->name,
             'actor_name' => $this->actor->name,
             'message' => $this->message,
+            'type' => $this->type,
         ];
     }
 }

@@ -189,12 +189,10 @@ export default function Index({
                         </div>
                     </Card>
 
-                    <div className="self-start">
-                        <ProjectTimeline
-                            projects={projectTimeline}
-                            monthLabel={monthLabel}
-                        />
-                    </div>
+                    <ProjectTimeline
+                        projects={projectTimeline}
+                        monthLabel={monthLabel}
+                    />
                 </div>
             </div>
 

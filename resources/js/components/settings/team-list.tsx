@@ -1,5 +1,5 @@
 import { useForm } from '@inertiajs/react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Pencil, Trash2, Users } from 'lucide-react';
 import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
 import { EmptyState } from '@/components/empty-state';
@@ -196,11 +196,27 @@ function TeamEditDialog({
     assignableUsers: AssignableUser[];
     onOpenChange: (open: boolean) => void;
 }) {
-    const { data, setData, patch, processing, errors, reset } = useForm({
-        name: team?.name ?? '',
-        description: team?.description ?? '',
-        member_ids: team?.members.map((member) => member.id) ?? [],
-    });
+    const { data, setData, patch, processing, errors, reset, clearErrors } =
+        useForm({
+            name: team?.name ?? '',
+            description: team?.description ?? '',
+            member_ids: team?.members.map((member) => member.id) ?? [],
+        });
+
+    // The dialog stays mounted between edits, so useForm's initial state
+    // only reflects whichever team was selected first - resync whenever a
+    // different team is opened for editing.
+    useEffect(() => {
+        if (team) {
+            clearErrors();
+            setData({
+                name: team.name,
+                description: team.description ?? '',
+                member_ids: team.members.map((member) => member.id),
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [team]);
 
     function handleSubmit(event: FormEvent) {
         event.preventDefault();

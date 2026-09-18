@@ -11,7 +11,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import {
@@ -19,21 +18,34 @@ import {
     store as storeMember,
     update as updateMember,
 } from '@/routes/projects/members';
-import type { ProjectMemberSummary } from '@/types';
+import type { AssignableUser, ProjectMemberSummary } from '@/types';
 
 export function ShareProjectDialog({
     projectId,
     members,
     canManage,
+    users = [],
+    ownerId,
 }: {
     projectId: number;
     members: ProjectMemberSummary[];
     canManage: boolean;
+    users?: AssignableUser[];
+    ownerId?: number;
 }) {
     const [open, setOpen] = useState(false);
+    const [selectedEmail, setSelectedEmail] = useState('');
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+            open={open}
+            onOpenChange={(nextOpen) => {
+                setOpen(nextOpen);
+                if (!nextOpen) {
+                    setSelectedEmail('');
+                }
+            }}
+        >
             <DialogTrigger asChild>
                 <Button variant="outline">Share</Button>
             </DialogTrigger>
@@ -113,23 +125,66 @@ export function ShareProjectDialog({
                         <Form
                             {...storeMember.form(projectId)}
                             resetOnSuccess
+                            onSuccess={() => setSelectedEmail('')}
                             className="space-y-4"
                         >
                             {({ processing, errors }) => (
                                 <>
                                     <Field
-                                        htmlFor="member-email"
-                                        label="Add member by email"
+                                        htmlFor="member-user"
+                                        label="Select user"
                                         required
                                         error={errors.email}
                                     >
-                                        <Input
-                                            id="member-email"
+                                        <select
+                                            id="member-user"
                                             name="email"
-                                            type="email"
-                                            placeholder="name@example.com"
+                                            value={selectedEmail}
+                                            onChange={(e) =>
+                                                setSelectedEmail(e.target.value)
+                                            }
                                             required
-                                        />
+                                            className="bg-input/50 focus-visible:border-ring focus-visible:ring-ring/30 text-foreground flex h-8 w-full rounded-2xl border border-transparent px-2.5 py-1 text-sm transition-[color,box-shadow] duration-200 outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50 [&>option]:bg-popover [&>option]:text-popover-foreground"
+                                        >
+                                            <option value="" disabled>
+                                                Select a user to add...
+                                            </option>
+                                            {users.length === 0 ? (
+                                                <option value="" disabled>
+                                                    No users found
+                                                </option>
+                                            ) : (
+                                                users.map((user) => {
+                                                    const isOwner =
+                                                        user.id === ownerId;
+                                                    const isMember =
+                                                        members.some(
+                                                            (m) =>
+                                                                m.user.id ===
+                                                                user.id,
+                                                        );
+                                                    const isAssigned =
+                                                        isOwner || isMember;
+
+                                                    return (
+                                                        <option
+                                                            key={user.id}
+                                                            value={user.email}
+                                                            disabled={
+                                                                isAssigned
+                                                            }
+                                                        >
+                                                            {user.name} ({user.email})
+                                                            {isOwner
+                                                                ? ' — Owner'
+                                                                : isMember
+                                                                  ? ' — Already added'
+                                                                  : ''}
+                                                        </option>
+                                                    );
+                                                })
+                                            )}
+                                        </select>
                                     </Field>
 
                                     <Field
@@ -144,7 +199,12 @@ export function ShareProjectDialog({
                                         />
                                     </Field>
 
-                                    <Button type="submit" disabled={processing}>
+                                    <Button
+                                        type="submit"
+                                        disabled={
+                                            processing || !selectedEmail
+                                        }
+                                    >
                                         {processing && <Spinner />}
                                         Add member
                                     </Button>

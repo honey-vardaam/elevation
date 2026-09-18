@@ -1,29 +1,18 @@
 import { router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import {
-    AlertTriangle,
-    ChevronDown,
-    Circle,
-    CircleCheck,
-    CircleDot,
-    Eye,
-    GripVertical,
+    AlertCircle,
+    Calendar,
+    Check,
     MessageSquare,
     MoreHorizontal,
     Plus,
-    RefreshCw,
     Users,
 } from 'lucide-react';
 import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
 import { Field } from '@/components/field';
-import { SortableList } from '@/components/sortable-list';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import {
     Dialog,
     DialogClose,
@@ -35,6 +24,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
@@ -48,105 +38,24 @@ import {
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { destroy, reorder, store, update } from '@/routes/projects/phases';
-import type {
-    ProjectPhaseStatus,
-    ProjectPhaseSummary,
-    PhaseActivityPreview,
-} from '@/types';
+import { destroy, store, update } from '@/routes/projects/phases';
+import type { ProjectPhaseStatus, ProjectPhaseSummary } from '@/types';
 
 const PHASE_STATUSES: { value: ProjectPhaseStatus; label: string }[] = [
-    { value: 'pending', label: 'Pending' },
-    { value: 'in_progress', label: 'In Progress' },
-    { value: 'completed', label: 'Completed' },
+    { value: 'pending', label: 'Mark Pending' },
+    { value: 'in_progress', label: 'Mark In Progress' },
+    { value: 'completed', label: 'Mark Completed' },
 ];
 
-/**
- * No color, no borders, no fills - just three steps of icon weight from
- * faint to solid, matching how the rest of the app already leans on
- * text-foreground/text-muted-foreground for emphasis. Nothing decorative
- * added to the card itself.
- */
-const PHASE_STATUS_ICON_STYLE: Record<ProjectPhaseStatus, string> = {
-    completed: 'text-foreground',
-    in_progress: 'text-foreground/60',
-    pending: 'text-muted-foreground/40',
-};
-
 function phaseStatusLabel(status: ProjectPhaseStatus): string {
-    return PHASE_STATUSES.find((s) => s.value === status)?.label ?? status;
-}
-
-function PhaseStatusIcon({ status }: { status: ProjectPhaseStatus }) {
-    const className = cn('size-4 shrink-0', PHASE_STATUS_ICON_STYLE[status]);
-
-    if (status === 'completed') {
-        return <CircleCheck className={className} />;
-    }
-    if (status === 'in_progress') {
-        return <CircleDot className={className} />;
-    }
-    return <Circle className={className} />;
-}
-
-function formatDateTime(iso: string): string {
-    return new Date(iso).toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    });
-}
-
-function PhaseActivityPreviewRow({
-    activity,
-}: {
-    activity: PhaseActivityPreview;
-}) {
-    return (
-        <li className="flex items-start gap-2 text-xs">
-            <PhaseActivityIcon
-                type={activity.type}
-                className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
-            />
-            <p className="text-muted-foreground min-w-0">
-                <span className="text-foreground font-medium">
-                    {activity.author.name}
-                </span>{' '}
-                {activity.preview}
-                {activity.attachment_name && (
-                    <span className="text-foreground">
-                        {' '}
-                        · {activity.attachment_name}
-                    </span>
-                )}
-                <span className="block">
-                    {formatDateTime(activity.created_at)}
-                </span>
-            </p>
-        </li>
-    );
-}
-
-function PhaseActivityIcon({
-    type,
-    className,
-}: {
-    type: string;
-    className?: string;
-}) {
-    switch (type) {
-        case 'change_request':
-            return <AlertTriangle className={className} />;
-        case 'review':
-            return <Eye className={className} />;
-        case 'status_changed':
-            return <RefreshCw className={className} />;
-        case 'approved':
-        case 'project_completed':
-            return <CircleCheck className={className} />;
+    switch (status) {
+        case 'completed':
+            return 'Completed';
+        case 'in_progress':
+            return 'In Progress';
+        case 'pending':
         default:
-            return <MessageSquare className={className} />;
+            return 'Pending';
     }
 }
 
@@ -156,30 +65,26 @@ export function ProjectPhases({
     availablePhaseTemplates,
     teams,
     canManage,
-    activePhaseId,
-    onOpenPhase,
-    onClosePhase,
+    currentPhaseId,
+    onSelectPhase,
+    className,
+    style,
 }: {
     projectId: number;
     phases: ProjectPhaseSummary[];
     availablePhaseTemplates: { id: number; name: string }[];
     teams: { id: number; name: string }[];
     canManage: boolean;
-    activePhaseId: number | null;
-    onOpenPhase: (phaseId: number) => void;
-    onClosePhase: () => void;
+    currentPhaseId?: number | null;
+    onSelectPhase?: (phaseId: number) => void;
+    className?: string;
+    style?: React.CSSProperties;
 }) {
     const [editing, setEditing] = useState<ProjectPhaseSummary | null>(null);
     const [deleting, setDeleting] = useState<ProjectPhaseSummary | null>(null);
-    const [expandedPhaseId, setExpandedPhaseId] = useState<number | null>(null);
-    const [phasesOpen, setPhasesOpen] = useState(true);
 
     if (phases.length === 0 && !canManage) {
         return null;
-    }
-
-    function handleReorder(ids: number[]) {
-        router.post(reorder(projectId).url, { ids }, { preserveScroll: true });
     }
 
     function changeStatus(
@@ -193,6 +98,7 @@ export function ProjectPhases({
                 start_date: phase.start_date,
                 end_date: phase.end_date,
                 notes: phase.notes,
+                team_id: phase.team?.id ?? null,
             },
             { preserveScroll: true },
         );
@@ -206,300 +112,77 @@ export function ProjectPhases({
         );
     }
 
-    const completedCount = phases.filter(
-        (p) => p.status === 'completed',
-    ).length;
-    const progressPercent =
-        phases.length > 0
-            ? Math.round((completedCount / phases.length) * 100)
-            : 0;
-
     return (
-        <Collapsible
-            open={phasesOpen}
-            onOpenChange={setPhasesOpen}
-            className="bg-muted/40 space-y-4 rounded-xl border p-4"
+        <div
+            className={cn(
+                'bg-muted/40 flex flex-col rounded-xl border p-3 shadow-xs overflow-hidden w-full',
+                className,
+            )}
+            style={style}
         >
-            <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                    <CollapsibleTrigger asChild>
-                        <button
-                            type="button"
-                            className="group/phases-toggle flex items-center gap-1.5 text-sm font-medium"
-                        >
-                            <ChevronDown className="text-muted-foreground size-4 transition-transform group-data-[state=closed]/phases-toggle:-rotate-90" />
-                            Phases
-                        </button>
-                    </CollapsibleTrigger>
-                    {canManage && availablePhaseTemplates.length > 0 && (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    <Plus className="size-4" />
-                                    Add phase
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {availablePhaseTemplates.map((template) => (
-                                    <DropdownMenuItem
-                                        key={template.id}
-                                        onSelect={() => addPhase(template.id)}
-                                    >
-                                        {template.name}
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    )}
+            <div className="flex items-center justify-between gap-2 shrink-0 pb-2.5 border-b">
+                <div>
+                    <h3 className="text-sm font-semibold tracking-tight">
+                        Phase Flow
+                    </h3>
+                    <p className="text-muted-foreground text-xs">
+                        {phases.filter((p) => p.status === 'completed').length}{' '}
+                        of {phases.length} completed
+                    </p>
                 </div>
-
-                {phases.length > 0 && (
-                    <div className="space-y-1.5">
-                        <p className="text-xs">
-                            <span className="text-foreground font-medium">
-                                {completedCount} of {phases.length} completed
-                            </span>
-                            <span className="text-muted-foreground">
-                                {' '}
-                                · {progressPercent}%
-                            </span>
-                        </p>
-                        <div className="bg-border h-1 w-full overflow-hidden rounded-full">
-                            <div
-                                className="bg-foreground h-full rounded-full transition-all duration-500 ease-out"
-                                style={{ width: `${progressPercent}%` }}
-                            />
-                        </div>
-                    </div>
+                {canManage && availablePhaseTemplates.length > 0 && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 gap-1 text-[11px] px-2"
+                            >
+                                <Plus className="size-3" />
+                                Add
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {availablePhaseTemplates.map((template) => (
+                                <DropdownMenuItem
+                                    key={template.id}
+                                    onSelect={() => addPhase(template.id)}
+                                >
+                                    {template.name}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 )}
             </div>
 
-            <CollapsibleContent className="space-y-2">
-                {phases.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">
-                        No phases yet.
-                    </p>
-                ) : (
-                    <SortableList
-                        items={phases}
-                        onReorder={handleReorder}
-                        disabled={!canManage}
-                        className="space-y-2"
-                        renderItem={(phase, _index, { handle, isDragging }) => (
-                            <Collapsible
-                                open={expandedPhaseId === phase.id}
-                                onOpenChange={(open) =>
-                                    setExpandedPhaseId(open ? phase.id : null)
-                                }
-                                className={cn(
-                                    'group/phase bg-card rounded-lg border p-3 transition-all',
-                                    phase.id === activePhaseId &&
-                                        'border-primary bg-primary/5',
-                                    isDragging && 'scale-[1.02] shadow-lg',
-                                )}
-                            >
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <div className="flex min-w-0 items-center gap-3">
-                                        {canManage && (
-                                            <button
-                                                type="button"
-                                                ref={handle.ref}
-                                                {...handle.attributes}
-                                                {...handle.listeners}
-                                                className="text-muted-foreground hover:text-foreground cursor-grab touch-none active:cursor-grabbing"
-                                            >
-                                                <GripVertical className="size-4" />
-                                                <span className="sr-only">
-                                                    Drag to reorder
-                                                </span>
-                                            </button>
-                                        )}
-                                        <PhaseStatusIcon
-                                            status={phase.status}
-                                        />
-                                        <div className="min-w-0">
-                                            <p className="truncate text-sm font-medium">
-                                                {phase.name}
-                                            </p>
-                                            <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs">
-                                                {(phase.start_date ||
-                                                    phase.end_date) && (
-                                                    <span>
-                                                        {phase.start_date}
-                                                        {phase.end_date &&
-                                                            ` – ${phase.end_date}`}
-                                                    </span>
-                                                )}
-                                                {phase.duration && (
-                                                    <span>
-                                                        {phase.duration}
-                                                    </span>
-                                                )}
-                                                {phase.team && (
-                                                    <span className="inline-flex items-center gap-1">
-                                                        <Users className="size-3" />
-                                                        {phase.team.name}
-                                                    </span>
-                                                )}
-                                                <span className="inline-flex items-center gap-1">
-                                                    <MessageSquare className="size-3" />
-                                                    {phase.comments_count}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1">
-                                                    <AlertTriangle className="size-3" />
-                                                    {
-                                                        phase.change_requests_count
-                                                    }
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex shrink-0 items-center gap-1">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            className={cn(
-                                                'relative',
-                                                phase.id === activePhaseId &&
-                                                    'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary',
-                                            )}
-                                            onClick={() =>
-                                                phase.id === activePhaseId
-                                                    ? onClosePhase()
-                                                    : onOpenPhase(phase.id)
-                                            }
-                                        >
-                                            <MessageSquare className="size-4" />
-                                            <span className="sr-only">
-                                                {phase.id === activePhaseId
-                                                    ? 'Close collaboration panel'
-                                                    : 'Collaborate'}
-                                            </span>
-                                            {phase.open_change_requests_count >
-                                                0 && (
-                                                <Badge
-                                                    variant="destructive"
-                                                    className="absolute -top-1 -right-1 h-4 min-w-4 justify-center rounded-full px-1 text-[10px]"
-                                                >
-                                                    {
-                                                        phase.open_change_requests_count
-                                                    }
-                                                </Badge>
-                                            )}
-                                        </Button>
-                                        {canManage ? (
-                                            <Select
-                                                value={phase.status}
-                                                onValueChange={(status) =>
-                                                    changeStatus(
-                                                        phase,
-                                                        status as ProjectPhaseStatus,
-                                                    )
-                                                }
-                                            >
-                                                <SelectTrigger className="h-8 w-fit">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {PHASE_STATUSES.map((s) => (
-                                                        <SelectItem
-                                                            key={s.value}
-                                                            value={s.value}
-                                                        >
-                                                            {s.label}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        ) : (
-                                            <Badge variant="secondary">
-                                                {phaseStatusLabel(phase.status)}
-                                            </Badge>
-                                        )}
-                                        {canManage && (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon-sm"
-                                                    >
-                                                        <MoreHorizontal className="size-4" />
-                                                        <span className="sr-only">
-                                                            Phase actions
-                                                        </span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        onSelect={() =>
-                                                            setEditing(phase)
-                                                        }
-                                                    >
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        variant="destructive"
-                                                        onSelect={() =>
-                                                            setDeleting(phase)
-                                                        }
-                                                    >
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        )}
-                                        <CollapsibleTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                className="group-data-[state=open]/phase:rotate-180"
-                                            >
-                                                <ChevronDown className="size-4" />
-                                                <span className="sr-only">
-                                                    Toggle phase notes
-                                                </span>
-                                            </Button>
-                                        </CollapsibleTrigger>
-                                    </div>
-                                </div>
-
-                                <CollapsibleContent>
-                                    <div className="border-border/60 mt-3 border-t pt-3 text-sm">
-                                        {phase.notes ? (
-                                            <p className="text-muted-foreground whitespace-pre-wrap">
-                                                {phase.notes}
-                                            </p>
-                                        ) : (
-                                            <p className="text-muted-foreground italic">
-                                                No notes for this phase.
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {phase.recent_activity.length > 0 && (
-                                        <div className="border-border/60 mt-3 border-t pt-3">
-                                            <p className="text-muted-foreground mb-2 text-xs font-medium">
-                                                Recent activity
-                                            </p>
-                                            <ul className="space-y-2">
-                                                {phase.recent_activity.map(
-                                                    (activity) => (
-                                                        <PhaseActivityPreviewRow
-                                                            key={activity.id}
-                                                            activity={activity}
-                                                        />
-                                                    ),
-                                                )}
-                                            </ul>
-                                        </div>
-                                    )}
-                                </CollapsibleContent>
-                            </Collapsible>
-                        )}
-                    />
-                )}
-            </CollapsibleContent>
+            {phases.length === 0 ? (
+                <div className="flex flex-1 items-center justify-center py-6 text-center text-muted-foreground text-sm">
+                    No phases yet.
+                </div>
+            ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto pt-2.5 px-0.5">
+                    {phases.map((phase, index) => (
+                        <VerticalPhaseStep
+                            key={phase.id}
+                            phase={phase}
+                            canManage={canManage}
+                            isSelected={currentPhaseId === phase.id}
+                            isLast={index === phases.length - 1}
+                            onSelect={
+                                onSelectPhase
+                                    ? () => onSelectPhase(phase.id)
+                                    : undefined
+                            }
+                            onEdit={() => setEditing(phase)}
+                            onDelete={() => setDeleting(phase)}
+                            onChangeStatus={(status) =>
+                                changeStatus(phase, status)
+                            }
+                        />
+                    ))}
+                </div>
+            )}
 
             <PhaseEditDialog
                 projectId={projectId}
@@ -529,7 +212,215 @@ export function ProjectPhases({
                 }
                 onSuccess={() => setDeleting(null)}
             />
-        </Collapsible>
+        </div>
+    );
+}
+
+function VerticalPhaseStep({
+    phase,
+    canManage,
+    isSelected,
+    isLast,
+    onSelect,
+    onEdit,
+    onDelete,
+    onChangeStatus,
+}: {
+    phase: ProjectPhaseSummary;
+    canManage: boolean;
+    isSelected: boolean;
+    isLast: boolean;
+    onSelect?: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
+    onChangeStatus: (status: ProjectPhaseStatus) => void;
+}) {
+    const isActive = phase.status === 'in_progress';
+    const isCompleted = phase.status === 'completed';
+
+    return (
+        <div className="relative flex items-stretch gap-2 min-w-0">
+            {/* Timeline track: node circle + connector line */}
+            <div className="flex flex-col items-center pt-2">
+                <button
+                    type="button"
+                    onClick={onSelect}
+                    className={cn(
+                        'flex size-4 shrink-0 items-center justify-center rounded-full border transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring z-10 bg-background',
+                        isCompleted &&
+                            'border-foreground bg-foreground text-background',
+                        isActive &&
+                            'border-primary bg-background text-primary ring-2 ring-primary/25',
+                        !isCompleted &&
+                            !isActive &&
+                            'border-muted-foreground/40 text-muted-foreground/50 hover:border-foreground/60',
+                    )}
+                    title={`${phaseStatusLabel(phase.status)}${onSelect ? ' — click to view conversation' : ''}`}
+                >
+                    {isCompleted ? (
+                        <Check className="size-2.5 stroke-[2.5]" />
+                    ) : isActive ? (
+                        <span className="size-1.5 rounded-full bg-primary" />
+                    ) : null}
+                </button>
+
+                {!isLast && (
+                    <div
+                        className={cn(
+                            'w-0.5 flex-1 min-h-4 my-1 transition-colors',
+                            isCompleted ? 'bg-foreground' : 'bg-border',
+                        )}
+                    />
+                )}
+            </div>
+
+            {/* Step card */}
+            <div
+                onClick={onSelect}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onSelect?.();
+                    }
+                }}
+                className={cn(
+                    'group/step flex-1 min-w-0 cursor-pointer rounded-xl border p-2.5 transition-all text-left mb-2 outline-none select-none',
+                    isSelected
+                        ? 'bg-accent/80 border-primary/50 shadow-xs ring-1 ring-primary/30'
+                        : 'bg-card/70 hover:bg-muted/40 hover:border-border/80',
+                )}
+            >
+                <div className="flex items-start justify-between gap-1.5 min-w-0">
+                    <div className="min-w-0 flex-1">
+                        <span
+                            className={cn(
+                                'block text-sm font-medium tracking-tight truncate',
+                                isSelected && 'text-foreground font-semibold',
+                            )}
+                            title={phase.name}
+                        >
+                            {phase.name}
+                        </span>
+
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <Badge
+                                variant={
+                                    isCompleted
+                                        ? 'default'
+                                        : isActive
+                                          ? 'secondary'
+                                          : 'outline'
+                                }
+                                className="text-[10px] px-1.5 py-0 shrink-0 h-4"
+                            >
+                                {phaseStatusLabel(phase.status)}
+                            </Badge>
+                        </div>
+
+                        {(phase.start_date || phase.duration) && (
+                            <div className="text-muted-foreground flex items-center gap-1.5 text-xs mt-1">
+                                <Calendar className="size-3 shrink-0 opacity-70" />
+                                <span className="truncate">
+                                    {phase.start_date && phase.end_date
+                                        ? `${phase.start_date} – ${phase.end_date}`
+                                        : phase.start_date
+                                          ? `Starts ${phase.start_date}`
+                                          : phase.duration}
+                                </span>
+                            </div>
+                        )}
+
+                        {phase.team && (
+                            <div className="text-muted-foreground flex items-center gap-1.5 text-xs mt-0.5">
+                                <Users className="size-3 shrink-0 opacity-70" />
+                                <span className="truncate">
+                                    {phase.team.name}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {canManage && (
+                        <div
+                            className="shrink-0 -mr-1 -mt-0.5"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-xs"
+                                        className="text-muted-foreground opacity-60 group-hover/step:opacity-100 data-[state=open]:opacity-100"
+                                    >
+                                        <MoreHorizontal className="size-3.5" />
+                                        <span className="sr-only">
+                                            {phase.name} actions
+                                        </span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onSelect={onEdit}>
+                                        Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    {PHASE_STATUSES.filter(
+                                        (s) => s.value !== phase.status,
+                                    ).map((s) => (
+                                        <DropdownMenuItem
+                                            key={s.value}
+                                            onSelect={() =>
+                                                onChangeStatus(s.value)
+                                            }
+                                        >
+                                            {s.label}
+                                        </DropdownMenuItem>
+                                    ))}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        variant="destructive"
+                                        onSelect={onDelete}
+                                    >
+                                        Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    )}
+                </div>
+
+                {(phase.open_change_requests_count > 0 ||
+                    phase.comments_count > 0 ||
+                    phase.notes) && (
+                    <div className="mt-2 space-y-1 border-t border-border/40 pt-1.5">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                            {phase.open_change_requests_count > 0 && (
+                                <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                                    <AlertCircle className="size-3" />
+                                    {phase.open_change_requests_count} open request
+                                    {phase.open_change_requests_count > 1
+                                        ? 's'
+                                        : ''}
+                                </span>
+                            )}
+                            {phase.comments_count > 0 && (
+                                <span className="flex items-center gap-1 text-muted-foreground">
+                                    <MessageSquare className="size-3" />
+                                    {phase.comments_count} comment
+                                    {phase.comments_count > 1 ? 's' : ''}
+                                </span>
+                            )}
+                        </div>
+                        {phase.notes && (
+                            <p className="text-muted-foreground line-clamp-2 text-xs italic">
+                                "{phase.notes}"
+                            </p>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
 

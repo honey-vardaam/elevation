@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Projects;
 
+use App\Models\PhaseFlowTemplate;
 use App\Models\PhaseTemplate;
 use App\Models\Project;
 use App\Models\ProjectMember;
@@ -17,9 +18,10 @@ class ProjectPhaseTest extends TestCase
     public function test_manager_can_attach_a_phase_template_to_a_project()
     {
         $user = User::factory()->create();
-        $project = Project::factory()->create();
+        $flow = PhaseFlowTemplate::factory()->create();
+        $project = Project::factory()->create(['phase_flow_template_id' => $flow->id]);
         ProjectMember::factory()->for($project)->for($user)->manager()->create();
-        $template = PhaseTemplate::factory()->create(['name' => 'Design']);
+        $template = PhaseTemplate::factory()->for($flow, 'flow')->create(['name' => 'Design']);
 
         $response = $this->actingAs($user)->post(route('projects.phases.store', $project), [
             'phase_template_id' => $template->id,
@@ -37,9 +39,10 @@ class ProjectPhaseTest extends TestCase
     public function test_same_phase_template_cannot_be_attached_twice()
     {
         $user = User::factory()->create();
-        $project = Project::factory()->create();
+        $flow = PhaseFlowTemplate::factory()->create();
+        $project = Project::factory()->create(['phase_flow_template_id' => $flow->id]);
         ProjectMember::factory()->for($project)->for($user)->manager()->create();
-        $template = PhaseTemplate::factory()->create();
+        $template = PhaseTemplate::factory()->for($flow, 'flow')->create();
         ProjectPhase::factory()->for($project)->create(['phase_template_id' => $template->id]);
 
         $response = $this->actingAs($user)->post(route('projects.phases.store', $project), [
@@ -49,12 +52,29 @@ class ProjectPhaseTest extends TestCase
         $response->assertSessionHasErrors('phase_template_id');
     }
 
+    public function test_a_step_from_another_flow_cannot_be_attached()
+    {
+        $user = User::factory()->create();
+        $flow = PhaseFlowTemplate::factory()->create();
+        $project = Project::factory()->create(['phase_flow_template_id' => $flow->id]);
+        ProjectMember::factory()->for($project)->for($user)->manager()->create();
+        $otherFlow = PhaseFlowTemplate::factory()->create();
+        $foreignTemplate = PhaseTemplate::factory()->for($otherFlow, 'flow')->create();
+
+        $response = $this->actingAs($user)->post(route('projects.phases.store', $project), [
+            'phase_template_id' => $foreignTemplate->id,
+        ]);
+
+        $response->assertSessionHasErrors('phase_template_id');
+    }
+
     public function test_editor_cannot_attach_a_phase()
     {
         $user = User::factory()->create();
-        $project = Project::factory()->create();
+        $flow = PhaseFlowTemplate::factory()->create();
+        $project = Project::factory()->create(['phase_flow_template_id' => $flow->id]);
         ProjectMember::factory()->for($project)->for($user)->editor()->create();
-        $template = PhaseTemplate::factory()->create();
+        $template = PhaseTemplate::factory()->for($flow, 'flow')->create();
 
         $response = $this->actingAs($user)->post(route('projects.phases.store', $project), [
             'phase_template_id' => $template->id,
@@ -78,23 +98,6 @@ class ProjectPhaseTest extends TestCase
         $this->assertSame('completed', $phase->fresh()->status->value);
     }
 
-    public function test_manager_can_reorder_phases()
-    {
-        $user = User::factory()->create();
-        $project = Project::factory()->create();
-        ProjectMember::factory()->for($project)->for($user)->manager()->create();
-        $first = ProjectPhase::factory()->for($project)->create(['sort_order' => 0]);
-        $second = ProjectPhase::factory()->for($project)->create(['sort_order' => 1]);
-
-        $response = $this->actingAs($user)->post(route('projects.phases.reorder', $project), [
-            'ids' => [$second->id, $first->id],
-        ]);
-
-        $response->assertSessionHasNoErrors();
-        $this->assertSame(0, $second->fresh()->sort_order);
-        $this->assertSame(1, $first->fresh()->sort_order);
-    }
-
     public function test_manager_can_remove_a_phase()
     {
         $user = User::factory()->create();
@@ -106,6 +109,21 @@ class ProjectPhaseTest extends TestCase
 
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseMissing('project_phases', ['id' => $phase->id]);
+    }
+
+    public function test_member_can_view_a_phases_activities_read_only()
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->create();
+        ProjectMember::factory()->for($project)->for($user)->viewer()->create();
+        $phase = ProjectPhase::factory()->for($project)->create(['name' => 'Design']);
+
+        $response = $this->actingAs($user)->getJson(route('projects.phases.show', [$project, $phase]));
+
+        $response->assertOk();
+        $response->assertJson([
+            'phase' => ['id' => $phase->id, 'name' => 'Design'],
+        ]);
     }
 
     public function test_phase_from_another_project_is_not_reachable_through_a_different_project()
@@ -122,20 +140,25 @@ class ProjectPhaseTest extends TestCase
         $response->assertNotFound();
     }
 
-    public function test_new_project_adopts_the_organizations_phase_pipeline_when_requested()
+    public function test_new_project_adopts_the_selected_phase_flow_when_requested()
     {
         $owner = User::factory()->owner()->create();
-        $design = PhaseTemplate::factory()->create(['name' => 'Design', 'sort_order' => 0]);
-        $construction = PhaseTemplate::factory()->create(['name' => 'Construction', 'sort_order' => 1]);
+        $flow = PhaseFlowTemplate::factory()->create();
+        $construction = PhaseTemplate::factory()->for($flow, 'flow')->create(['name' => 'Construction']);
+        $design = PhaseTemplate::factory()->for($flow, 'flow')->create([
+            'name' => 'Design',
+            'next_phase_template_id' => $construction->id,
+        ]);
 
         $response = $this->actingAs($owner)->post(route('projects.store'), [
             'name' => 'New Build',
-            'apply_phase_pipeline' => true,
+            'phase_flow_template_id' => $flow->id,
         ]);
 
         $response->assertSessionHasNoErrors();
         $project = Project::query()->where('name', 'New Build')->firstOrFail();
 
+        $this->assertSame($flow->id, $project->phase_flow_template_id);
         $this->assertDatabaseHas('project_phases', [
             'project_id' => $project->id,
             'phase_template_id' => $design->id,
@@ -151,11 +174,11 @@ class ProjectPhaseTest extends TestCase
     public function test_new_project_skips_the_pipeline_when_not_requested()
     {
         $owner = User::factory()->owner()->create();
-        PhaseTemplate::factory()->create();
+        $flow = PhaseFlowTemplate::factory()->create();
+        PhaseTemplate::factory()->for($flow, 'flow')->create();
 
         $response = $this->actingAs($owner)->post(route('projects.store'), [
             'name' => 'No Pipeline',
-            'apply_phase_pipeline' => false,
         ]);
 
         $response->assertSessionHasNoErrors();
@@ -163,5 +186,23 @@ class ProjectPhaseTest extends TestCase
 
         $this->assertDatabaseCount('project_phases', 0);
         $this->assertSame(0, $project->phases()->count());
+    }
+
+    public function test_available_phase_templates_are_scoped_to_the_projects_flow()
+    {
+        $owner = User::factory()->create();
+        $flow = PhaseFlowTemplate::factory()->create();
+        $project = Project::factory()->for($owner, 'owner')->create(['phase_flow_template_id' => $flow->id]);
+        $ownStep = PhaseTemplate::factory()->for($flow, 'flow')->create(['name' => 'Own Step']);
+
+        $otherFlow = PhaseFlowTemplate::factory()->create();
+        PhaseTemplate::factory()->for($otherFlow, 'flow')->create(['name' => 'Foreign Step']);
+
+        $response = $this->actingAs($owner)->get(route('projects.show', $project));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('availablePhaseTemplates', [
+                ['id' => $ownStep->id, 'name' => 'Own Step'],
+            ]));
     }
 }

@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ActivityStatus;
 use App\Enums\PhaseActivityType;
-use App\Enums\ReviewStatus;
 use Database\Factories\PhaseActivityFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -23,7 +23,7 @@ use Illuminate\Support\Carbon;
  * @property array<string, mixed>|null $meta
  * @property int|null $attachment_id
  * @property int|null $reviewer_id
- * @property ReviewStatus|null $review_status
+ * @property ActivityStatus|null $activity_status
  * @property Carbon|null $resolved_at
  * @property int|null $resolved_by
  * @property Carbon|null $created_at
@@ -36,7 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read User|null $resolvedBy
  * @property-read User|null $reviewer
  */
-#[Fillable(['type', 'body', 'parent_id', 'meta', 'reviewer_id', 'review_status'])]
+#[Fillable(['type', 'body', 'parent_id', 'meta', 'reviewer_id', 'activity_status'])]
 class PhaseActivity extends Model
 {
     /** @use HasFactory<PhaseActivityFactory> */
@@ -47,7 +47,7 @@ class PhaseActivity extends Model
         return [
             'type' => PhaseActivityType::class,
             'meta' => 'array',
-            'review_status' => ReviewStatus::class,
+            'activity_status' => ActivityStatus::class,
             'resolved_at' => 'datetime',
         ];
     }

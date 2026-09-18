@@ -6,11 +6,19 @@ import { show } from '@/routes/projects';
 import { projectStatusLabel } from '@/components/projects/project-status-select';
 import type { ProjectTimelineEntry } from '@/types';
 
-const STATUS_BAR_CLASS: Record<ProjectTimelineEntry['status'], string> = {
+const STATUS_DOT_CLASS: Record<ProjectTimelineEntry['status'], string> = {
     ongoing: 'bg-chart-5',
     on_hold: 'bg-chart-3',
     completed: 'bg-chart-1',
 };
+
+function formatDate(dateStr: string): string {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+    });
+}
 
 export function ProjectTimeline({
     projects,
@@ -20,14 +28,14 @@ export function ProjectTimeline({
     monthLabel: string;
 }) {
     return (
-        <Card>
+        <Card className="flex h-full flex-col">
             <CardHeader>
                 <CardTitle>Project timeline</CardTitle>
                 <p className="text-muted-foreground text-sm">
                     Projects you have access to, over {monthLabel}.
                 </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-h-0 flex-1 overflow-y-auto">
                 {projects.length === 0 ? (
                     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-8 text-center">
                         <GanttChartSquare className="text-muted-foreground size-6" />
@@ -38,35 +46,35 @@ export function ProjectTimeline({
                 ) : (
                     <div className="space-y-3">
                         {projects.map((project) => (
-                            <div key={project.id} className="space-y-1">
-                                <div className="flex items-center justify-between gap-2">
-                                    <Link
-                                        href={show(project.id)}
-                                        className="truncate text-sm font-medium hover:underline"
-                                    >
-                                        {project.name}
-                                    </Link>
-                                    <Badge
-                                        variant="outline"
-                                        className="shrink-0 capitalize"
-                                    >
-                                        {projectStatusLabel(project.status)}
-                                    </Badge>
+                            <div
+                                key={project.id}
+                                className="flex items-start gap-2"
+                            >
+                                <span
+                                    className={`mt-1.5 size-2 shrink-0 rounded-full ${STATUS_DOT_CLASS[project.status]}`}
+                                />
+                                <div className="min-w-0 flex-1 space-y-0.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <Link
+                                            href={show(project.id)}
+                                            className="truncate text-sm font-medium hover:underline"
+                                        >
+                                            {project.name}
+                                        </Link>
+                                        <Badge
+                                            variant="outline"
+                                            className="shrink-0 capitalize"
+                                        >
+                                            {projectStatusLabel(project.status)}
+                                        </Badge>
+                                    </div>
+                                    <p className="text-muted-foreground text-xs">
+                                        {project.start_date &&
+                                            formatDate(project.start_date)}
+                                        {project.end_date &&
+                                            ` – ${formatDate(project.end_date)}`}
+                                    </p>
                                 </div>
-                                <div className="bg-muted relative h-2 w-full overflow-hidden rounded-full">
-                                    <div
-                                        className={`absolute h-full rounded-full ${STATUS_BAR_CLASS[project.status]}`}
-                                        style={{
-                                            left: `${project.start_offset_pct}%`,
-                                            width: `${Math.max(project.width_pct, 2)}%`,
-                                        }}
-                                    />
-                                </div>
-                                <p className="text-muted-foreground text-xs">
-                                    {project.start_date}
-                                    {project.end_date &&
-                                        ` – ${project.end_date}`}
-                                </p>
                             </div>
                         ))}
                     </div>

@@ -13,7 +13,7 @@ export function AppSidebarHeader({
     headerAction?: ReactNode;
 }) {
     return (
-        <header className="border-sidebar-border/50 ease-collapse flex h-16 shrink-0 items-center justify-between gap-2 border-b px-6 transition-[width,height] duration-[350ms] group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4">
+        <header className="border-sidebar-border/50 bg-background sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-2 border-b px-6 md:px-4">
             <div className="flex items-center gap-2">
                 <SidebarTrigger className="-ml-1" />
                 <Separator orientation="vertical" className="mr-2 h-7" />

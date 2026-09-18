@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ActivityStatus;
 use App\Enums\PhaseActivityType;
 use App\Enums\ProjectPhaseStatus;
 use App\Enums\ProjectStatus;
@@ -39,7 +40,7 @@ class DashboardController extends Controller
 
         $openChangeRequestsTotal = PhaseActivity::whereIn('project_phase_id', $accessiblePhaseIds)
             ->where('type', PhaseActivityType::ChangeRequest)
-            ->whereNull('resolved_at')
+            ->where('activity_status', '!=', ActivityStatus::Resolved)
             ->count();
 
         $needsAttention = ProjectPhase::whereIn('id', $accessiblePhaseIds)
@@ -60,7 +61,7 @@ class DashboardController extends Controller
         $recentActivity = PhaseActivity::whereIn('project_phase_id', $accessiblePhaseIds)
             ->with(['author:id,name', 'projectPhase:id,name,project_id', 'projectPhase.project:id,name'])
             ->latest()
-            ->limit(20)
+            ->limit(7)
             ->get()
             ->map(fn (PhaseActivity $activity) => [
                 'id' => $activity->id,
@@ -92,6 +93,21 @@ class DashboardController extends Controller
             ->with('project:id,name')
             ->latest('started_at')
             ->first();
+
+        $recentTimeEntries = TimeEntry::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('ended_at')
+            ->with('project:id,name')
+            ->latest('ended_at')
+            ->limit(3)
+            ->get()
+            ->map(fn (TimeEntry $entry) => [
+                'id' => $entry->id,
+                'task' => $entry->task,
+                'project' => ['id' => $entry->project->id, 'name' => $entry->project->name],
+                'ended_at' => $entry->ended_at->toIso8601String(),
+                'duration_seconds' => $entry->durationInSeconds(),
+            ]);
 
         $hoursTrackedToday = round(TimeEntry::query()
             ->where('user_id', $user->id)
@@ -182,6 +198,8 @@ class DashboardController extends Controller
             'work_items_delta' => $weeklyActivity->sum('work_items') - $previousWeekWorkItems,
         ];
 
+        $weeklyHours = $this->weeklyHoursFor($user, max(0, $request->integer('weeks_ago')));
+
         $isOwner = $user->isOwner();
 
         return Inertia::render('dashboard', [
@@ -194,18 +212,60 @@ class DashboardController extends Controller
                 'id' => $activeTimeEntry->id,
                 'task' => $activeTimeEntry->task,
                 'started_at' => $activeTimeEntry->started_at->toIso8601String(),
+                'paused_at' => $activeTimeEntry->paused_at?->toIso8601String(),
                 'project' => ['id' => $activeTimeEntry->project->id, 'name' => $activeTimeEntry->project->name],
             ] : null,
+            'recentTimeEntries' => $recentTimeEntries,
             'hoursTrackedToday' => $hoursTrackedToday,
             'tasks' => $tasks,
             'allottedProjects' => $allottedProjects,
             'weeklyActivity' => $weeklyActivity,
             'weeklyComparison' => $weeklyComparison,
+            'weeklyHours' => $weeklyHours,
             'isOwner' => $isOwner,
             'ownerStats' => $isOwner ? [
                 'clientsCount' => Client::query()->count(),
                 'teamCount' => User::query()->count(),
             ] : null,
         ]);
+    }
+
+    /**
+     * Daily hours logged over a rolling 7-day window, shifted back by
+     * $weeksAgo full weeks - lets the "Hours per week" chart carousel
+     * through past weeks without touching the rest of the dashboard,
+     * which always reflects the current week.
+     *
+     * @return array<string, mixed>
+     */
+    private function weeklyHoursFor(User $user, int $weeksAgo): array
+    {
+        $offsetDays = $weeksAgo * 7;
+
+        $days = collect(range(6, 0))->map(function (int $daysAgo) use ($user, $offsetDays) {
+            $day = today()->subDays($daysAgo + $offsetDays);
+
+            $hours = round(TimeEntry::query()
+                ->where('user_id', $user->id)
+                ->whereDate('started_at', $day)
+                ->get()
+                ->sum(fn (TimeEntry $entry) => $entry->durationInSeconds()) / 3600, 1);
+
+            return [
+                'date' => $day->toDateString(),
+                'label' => $day->format('D'),
+                'hours' => $hours,
+            ];
+        })->values();
+
+        $rangeStart = today()->subDays(6 + $offsetDays);
+        $rangeEnd = today()->subDays($offsetDays);
+
+        return [
+            'days' => $days,
+            'total' => round($days->sum('hours'), 1),
+            'weeksAgo' => $weeksAgo,
+            'rangeLabel' => $rangeStart->format('M j').' - '.$rangeEnd->format('M j'),
+        ];
     }
 }

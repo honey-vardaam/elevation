@@ -3,18 +3,24 @@ import { type ChangeEvent, type FormEvent, useState } from 'react';
 import {
     AlertCircle,
     CheckCircle2,
+    FolderOpen,
     MessageCircle,
     Paperclip,
     Reply,
     RotateCcw,
     Sparkles,
-    UserCheck,
+    Trash2,
+    X,
     XCircle,
 } from 'lucide-react';
+import { ConfirmDeleteDialog } from '@/components/confirm-delete-dialog';
 import { EmptyState } from '@/components/empty-state';
+import { MentionTextarea } from '@/components/mention-textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -22,13 +28,19 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useInitials } from '@/hooks/use-initials';
+import { fileIconFor, formatBytes } from '@/lib/file-display';
 import { cn } from '@/lib/utils';
 import { advance } from '@/routes/projects/phases';
 import {
     decide,
+    destroy,
     resolve,
     resubmit,
     store,
@@ -36,15 +48,63 @@ import {
 import type {
     PhaseActivitySummary,
     ProjectPhaseSummary,
-    ReviewStatus,
+    ProjectStorageFile,
     TaggableMember,
 } from '@/types';
 
-const REVIEW_STATUS_LABEL: Record<ReviewStatus, string> = {
-    pending: 'Pending Review',
-    changes_requested: 'Changes Requested',
-    approved: 'Approved',
-};
+const COMPOSER_TYPES = [
+    { value: 'comment', label: 'Comment', icon: MessageCircle },
+    { value: 'change_request', label: 'Request', icon: AlertCircle },
+] as const;
+
+/**
+ * A request's status reads differently depending on whether a reviewer is
+ * tagged: with no reviewer it's a plain open/resolved flag; with one, it
+ * tracks that reviewer's decision.
+ */
+function requestStatusLabel(activity: PhaseActivitySummary): string {
+    if (activity.reviewer) {
+        switch (activity.activity_status) {
+            case 'changes_requested':
+                return 'Changes Requested';
+            case 'resolved':
+                return 'Approved';
+            default:
+                return 'Pending Review';
+        }
+    }
+
+    return activity.activity_status === 'resolved' ? 'Resolved' : 'Open';
+}
+
+/**
+ * Status color language used consistently across the badge and the
+ * resolve/reopen actions: violet = open/needs a decision, red = changes
+ * requested, green = resolved/approved. The badge's icon carries the same
+ * signal at a glance, so status reads clearly without a decorative rail
+ * down the side of the card.
+ */
+function requestBadgeClasses(activity: PhaseActivitySummary): string {
+    switch (activity.activity_status) {
+        case 'changes_requested':
+            return 'border-destructive/30 bg-destructive/10 text-destructive';
+        case 'resolved':
+            return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400';
+        default:
+            return 'border-chart-2/30 bg-chart-2/10 text-chart-2';
+    }
+}
+
+function RequestStatusIcon({ activity }: { activity: PhaseActivitySummary }) {
+    switch (activity.activity_status) {
+        case 'changes_requested':
+            return <XCircle className="size-3" />;
+        case 'resolved':
+            return <CheckCircle2 className="size-3" />;
+        default:
+            return <AlertCircle className="size-3" />;
+    }
+}
 
 export function statusLabel(status: string): string {
     return status
@@ -53,13 +113,52 @@ export function statusLabel(status: string): string {
         .join(' ');
 }
 
-function formatDate(iso: string): string {
-    return new Date(iso).toLocaleString(undefined, {
-        month: 'short',
-        day: 'numeric',
+function formatTime(iso: string): string {
+    return new Date(iso).toLocaleTimeString(undefined, {
         hour: 'numeric',
         minute: '2-digit',
     });
+}
+
+function dateKey(iso: string): string {
+    return new Date(iso).toDateString();
+}
+
+/**
+ * The label shown on a date divider between groups of same-day activity -
+ * "Today"/"Yesterday" when applicable, otherwise a plain calendar date.
+ */
+function formatDateDivider(iso: string): string {
+    const date = new Date(iso);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    if (dateKey(iso) === today.toDateString()) {
+        return 'Today';
+    }
+
+    if (dateKey(iso) === yesterday.toDateString()) {
+        return 'Yesterday';
+    }
+
+    return date.toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+        year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    });
+}
+
+function DateDivider({ iso }: { iso: string }) {
+    return (
+        <div className="flex items-center gap-2">
+            <div className="bg-border h-px flex-1" />
+            <span className="text-muted-foreground text-[11px] font-medium">
+                {formatDateDivider(iso)}
+            </span>
+            <div className="bg-border h-px flex-1" />
+        </div>
+    );
 }
 
 function SystemLine({ activity }: { activity: PhaseActivitySummary }) {
@@ -81,8 +180,55 @@ function SystemLine({ activity }: { activity: PhaseActivitySummary }) {
             {icon}
             <span>{text}</span>
             <span>&middot;</span>
-            <span>{formatDate(activity.created_at)}</span>
+            <span>{formatTime(activity.created_at)}</span>
         </div>
+    );
+}
+
+/**
+ * An image attachment renders as an inline thumbnail; anything else (PDF,
+ * spreadsheet, archive, ...) renders as a compact file card with an icon
+ * matched to its type - both link out to the download route.
+ */
+function AttachmentPreview({
+    attachment,
+}: {
+    attachment: NonNullable<PhaseActivitySummary['attachment']>;
+}) {
+    if (attachment.mime_type?.startsWith('image/')) {
+        return (
+            <a
+                href={attachment.download_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block max-w-[220px] overflow-hidden rounded-xl"
+            >
+                <img
+                    src={attachment.download_url}
+                    alt={attachment.name}
+                    className="max-h-52 w-full object-cover"
+                />
+            </a>
+        );
+    }
+
+    const Icon = fileIconFor(attachment.mime_type);
+
+    return (
+        <a
+            href={attachment.download_url}
+            className="bg-background hover:border-foreground/20 flex max-w-[220px] items-center gap-2 rounded-xl border px-2.5 py-2 text-xs"
+        >
+            <Icon className="text-muted-foreground size-5 shrink-0" />
+            <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">
+                    {attachment.name}
+                </span>
+                <span className="text-muted-foreground block">
+                    {formatBytes(attachment.size)}
+                </span>
+            </span>
+        </a>
     );
 }
 
@@ -92,6 +238,7 @@ function ActivityCard({
     phaseId,
     canManage,
     currentUserId,
+    projectMembers,
     depth = 0,
 }: {
     activity: PhaseActivitySummary;
@@ -99,10 +246,12 @@ function ActivityCard({
     phaseId: number;
     canManage: boolean;
     currentUserId: number;
+    projectMembers: TaggableMember[];
     depth?: number;
 }) {
     const [replying, setReplying] = useState(false);
     const [deciding, setDeciding] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [note, setNote] = useState('');
     const getInitials = useInitials();
     const { data, setData, post, processing, reset } = useForm({
@@ -157,29 +306,29 @@ function ActivityCard({
         );
     }
 
-    const isResolved = activity.resolved_at !== null;
+    const isRequest = activity.type === 'change_request';
+    const isResolved = activity.activity_status === 'resolved';
     const isOwn = activity.author.id === currentUserId;
-    const isReview = activity.type === 'review';
     const isReviewer = activity.reviewer?.id === currentUserId;
+    const canToggleResolved =
+        isRequest && canManage && (isResolved || !activity.reviewer);
     const canDecideReview =
-        isReview &&
-        activity.review_status === 'pending' &&
+        isRequest &&
+        activity.reviewer !== null &&
+        activity.activity_status === 'open' &&
         (isReviewer || canManage);
     const canResubmitReview =
-        isReview &&
-        activity.review_status === 'changes_requested' &&
+        isRequest &&
+        activity.activity_status === 'changes_requested' &&
         (isOwn || canManage);
 
+    const indentClasses =
+        depth > 0 ? 'border-border/60 ml-4 border-l pl-3.5' : '';
+
     return (
-        <div
-            className={cn(
-                'flex items-end gap-2',
-                depth > 0 && 'ml-10',
-                isOwn ? 'flex-row-reverse' : 'flex-row',
-            )}
-        >
+        <div className={cn('flex gap-2.5 py-0.5 pr-2', indentClasses)}>
             {!isOwn && (
-                <Avatar size="sm" className="shrink-0">
+                <Avatar size="sm" className="mt-0.5 shrink-0">
                     <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
                         {getInitials(activity.author.name)}
                     </AvatarFallback>
@@ -188,114 +337,80 @@ function ActivityCard({
 
             <div
                 className={cn(
-                    'flex max-w-[75%] flex-col gap-1',
-                    isOwn ? 'items-end' : 'items-start',
+                    'flex min-w-0 flex-1 flex-col space-y-1',
+                    isOwn && 'items-end',
                 )}
             >
-                {!isOwn && (
-                    <span className="text-muted-foreground px-1 text-xs font-medium">
-                        {activity.author.name}
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-sm font-medium">
+                        {isOwn ? 'You' : activity.author.name}
                     </span>
-                )}
 
-                <div
-                    className={cn(
-                        'rounded-2xl px-3 py-2',
-                        isOwn
-                            ? 'bg-primary text-primary-foreground rounded-br-sm'
-                            : 'bg-muted rounded-bl-sm',
-                    )}
-                >
-                    {activity.type === 'change_request' && (
+                    {isRequest && (
                         <Badge
-                            variant={isResolved ? 'secondary' : 'outline'}
-                            className={cn(
-                                'mb-1',
-                                isOwn &&
-                                    !isResolved &&
-                                    'border-primary-foreground/40 text-primary-foreground',
-                            )}
+                            variant="outline"
+                            className={requestBadgeClasses(activity)}
                         >
-                            {isResolved ? 'Resolved' : 'Change requested'}
+                            <RequestStatusIcon activity={activity} />
+                            {requestStatusLabel(activity)}
                         </Badge>
                     )}
 
-                    {isReview && activity.review_status && (
-                        <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                            <Badge
-                                variant={
-                                    activity.review_status === 'approved'
-                                        ? 'secondary'
-                                        : activity.review_status ===
-                                            'changes_requested'
-                                          ? 'destructive'
-                                          : 'outline'
-                                }
-                                className={cn(
-                                    isOwn &&
-                                        activity.review_status === 'pending' &&
-                                        'border-primary-foreground/40 text-primary-foreground',
-                                )}
-                            >
-                                {REVIEW_STATUS_LABEL[activity.review_status]}
-                            </Badge>
-                            {activity.reviewer && (
-                                <span
-                                    className={cn(
-                                        'text-xs',
-                                        isOwn
-                                            ? 'text-primary-foreground/80'
-                                            : 'text-muted-foreground',
-                                    )}
-                                >
-                                    Reviewer: {activity.reviewer.name}
-                                </span>
-                            )}
-                        </div>
-                    )}
-
-                    {activity.body && (
-                        <p className="text-sm whitespace-pre-wrap">
-                            {activity.body}
-                        </p>
-                    )}
-
-                    {activity.attachment && (
-                        <a
-                            href={activity.attachment.download_url}
-                            className={cn(
-                                'mt-2 flex items-center gap-1.5 text-xs hover:underline',
-                                isOwn
-                                    ? 'text-primary-foreground/80'
-                                    : 'text-muted-foreground',
-                            )}
-                        >
-                            <Paperclip className="size-3.5" />
-                            {activity.attachment.name}
-                        </a>
-                    )}
+                    <span className="text-muted-foreground text-xs">
+                        {formatTime(activity.created_at)}
+                    </span>
                 </div>
 
-                <div className="flex items-center gap-2 px-1">
-                    <span className="text-muted-foreground text-[11px]">
-                        {formatDate(activity.created_at)}
-                    </span>
+                {isRequest && activity.reviewer && (
+                    <p className="text-muted-foreground text-xs">
+                        Reviewer: {activity.reviewer.name}
+                    </p>
+                )}
+
+                {activity.body && (
+                    <div
+                        className={cn(
+                            'rounded-2xl px-3 py-1.5 text-sm whitespace-pre-wrap',
+                            isOwn
+                                ? 'max-w-[85%] bg-neutral-600 text-white'
+                                : 'max-w-[65%] self-start bg-muted',
+                        )}
+                    >
+                        {activity.body}
+                    </div>
+                )}
+
+                {activity.attachment && (
+                    <AttachmentPreview attachment={activity.attachment} />
+                )}
+
+                <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 text-xs">
                     {depth === 0 && (
                         <button
                             type="button"
                             onClick={() => setReplying((v) => !v)}
-                            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-[11px]"
+                            className="hover:text-foreground flex items-center gap-1"
                         >
                             <Reply className="size-3" />
                             Reply
                         </button>
                     )}
-                    {activity.type === 'change_request' && canManage && (
+                    {canToggleResolved && (
                         <button
                             type="button"
                             onClick={toggleResolved}
-                            className="text-muted-foreground hover:text-foreground text-[11px]"
+                            className={cn(
+                                'flex items-center gap-1 font-medium',
+                                isResolved
+                                    ? 'text-chart-2 hover:text-chart-2/80'
+                                    : 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400',
+                            )}
                         >
+                            {isResolved ? (
+                                <RotateCcw className="size-3" />
+                            ) : (
+                                <CheckCircle2 className="size-3" />
+                            )}
                             {isResolved ? 'Reopen' : 'Mark resolved'}
                         </button>
                     )}
@@ -303,8 +418,9 @@ function ActivityCard({
                         <button
                             type="button"
                             onClick={() => setDeciding((v) => !v)}
-                            className="text-muted-foreground hover:text-foreground text-[11px]"
+                            className="text-primary hover:text-primary/80 flex items-center gap-1 font-medium"
                         >
+                            <AlertCircle className="size-3" />
                             Review this
                         </button>
                     )}
@@ -312,16 +428,26 @@ function ActivityCard({
                         <button
                             type="button"
                             onClick={resubmitReview}
-                            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-[11px]"
+                            className="text-primary hover:text-primary/80 flex items-center gap-1 font-medium"
                         >
                             <RotateCcw className="size-3" />
                             Resubmit for review
                         </button>
                     )}
+                    {isOwn && (
+                        <button
+                            type="button"
+                            onClick={() => setDeleting(true)}
+                            className="hover:text-destructive flex items-center gap-1"
+                        >
+                            <Trash2 className="size-3" />
+                            Delete
+                        </button>
+                    )}
                 </div>
 
                 {deciding && (
-                    <div className="w-full min-w-64 space-y-2">
+                    <div className="max-w-md space-y-2 pt-1">
                         <Textarea
                             rows={2}
                             placeholder="Add a note (required if requesting changes)..."
@@ -365,13 +491,14 @@ function ActivityCard({
                 {replying && (
                     <form
                         onSubmit={submitReply}
-                        className="w-full min-w-64 space-y-2"
+                        className="max-w-md space-y-2 pt-1"
                     >
-                        <Textarea
+                        <MentionTextarea
                             rows={2}
-                            placeholder="Write a reply..."
+                            placeholder="Write a reply... (@ to mention someone)"
                             value={data.body}
-                            onChange={(e) => setData('body', e.target.value)}
+                            onChange={(body) => setData('body', body)}
+                            members={projectMembers}
                             autoFocus
                         />
                         <div className="flex justify-end gap-2">
@@ -395,7 +522,7 @@ function ActivityCard({
                 )}
 
                 {activity.replies.length > 0 && (
-                    <div className="mt-1 w-full space-y-2">
+                    <div className="space-y-3 pt-2">
                         {activity.replies.map((reply) => (
                             <ActivityCard
                                 key={reply.id}
@@ -404,13 +531,106 @@ function ActivityCard({
                                 phaseId={phaseId}
                                 canManage={canManage}
                                 currentUserId={currentUserId}
+                                projectMembers={projectMembers}
                                 depth={depth + 1}
                             />
                         ))}
                     </div>
                 )}
+
+                {isOwn && (
+                    <ConfirmDeleteDialog
+                        open={deleting}
+                        onOpenChange={setDeleting}
+                        title="Delete this message?"
+                        description={
+                            activity.replies.length > 0
+                                ? 'This removes it along with every reply underneath it. This can’t be undone.'
+                                : 'This can’t be undone.'
+                        }
+                        formAction={destroy.form([
+                            projectId,
+                            phaseId,
+                            activity.id,
+                        ])}
+                    />
+                )}
             </div>
         </div>
+    );
+}
+
+function AttachExistingFileDialog({
+    open,
+    onOpenChange,
+    files,
+    onSelect,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    files: ProjectStorageFile[];
+    onSelect: (file: ProjectStorageFile) => void;
+}) {
+    const [query, setQuery] = useState('');
+    const filtered = files.filter((file) =>
+        file.name.toLowerCase().includes(query.trim().toLowerCase()),
+    );
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="flex max-h-[70vh] flex-col">
+                <DialogTitle>Attach a file from project storage</DialogTitle>
+
+                {files.length > 0 && (
+                    <Input
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search files..."
+                        autoFocus
+                    />
+                )}
+
+                <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">
+                    {files.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            No files have been uploaded to this project yet.
+                        </p>
+                    ) : filtered.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">
+                            No files match &ldquo;{query}&rdquo;.
+                        </p>
+                    ) : (
+                        filtered.map((file) => {
+                            const Icon = fileIconFor(file.mime_type);
+
+                            return (
+                                <button
+                                    key={file.id}
+                                    type="button"
+                                    onClick={() => {
+                                        onSelect(file);
+                                        onOpenChange(false);
+                                    }}
+                                    className="hover:bg-muted/60 flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm"
+                                >
+                                    <Icon className="text-muted-foreground size-4 shrink-0" />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate font-medium">
+                                            {file.name}
+                                        </span>
+                                        <span className="text-muted-foreground block truncate text-xs">
+                                            {file.folder_path ?? 'Root'}
+                                            {' · '}
+                                            {formatBytes(file.size)}
+                                        </span>
+                                    </span>
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -418,20 +638,48 @@ function Composer({
     projectId,
     phaseId,
     projectMembers,
+    projectFiles,
 }: {
     projectId: number;
     phaseId: number;
     projectMembers: TaggableMember[];
+    projectFiles: ProjectStorageFile[];
 }) {
+    const [pickerOpen, setPickerOpen] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
-        type: 'comment' as 'comment' | 'change_request' | 'review',
+        type: 'comment' as 'comment' | 'change_request',
         body: '',
         reviewer_id: '' as number | '',
         attachment: null as File | null,
+        attachment_id: null as number | null,
     });
 
+    const selectedExistingFile = projectFiles.find(
+        (file) => file.id === data.attachment_id,
+    );
+
     function handleAttachmentChange(event: ChangeEvent<HTMLInputElement>) {
-        setData('attachment', event.target.files?.[0] ?? null);
+        setData((current) => ({
+            ...current,
+            attachment: event.target.files?.[0] ?? null,
+            attachment_id: null,
+        }));
+    }
+
+    function handlePickExisting(file: ProjectStorageFile) {
+        setData((current) => ({
+            ...current,
+            attachment: null,
+            attachment_id: file.id,
+        }));
+    }
+
+    function clearAttachment() {
+        setData((current) => ({
+            ...current,
+            attachment: null,
+            attachment_id: null,
+        }));
     }
 
     function handleSubmit(event: FormEvent) {
@@ -446,47 +694,55 @@ function Composer({
 
     return (
         <form onSubmit={handleSubmit} className="space-y-2">
-            <Tabs
-                value={data.type}
-                onValueChange={(value) =>
-                    setData('type', value as typeof data.type)
-                }
-            >
-                <TabsList className="w-full">
-                    <TabsTrigger value="comment">
-                        <MessageCircle className="size-3.5" />
-                        Comment
-                    </TabsTrigger>
-                    <TabsTrigger value="change_request">
-                        <AlertCircle className="size-3.5" />
-                        Request changes
-                    </TabsTrigger>
-                    <TabsTrigger value="review">
-                        <UserCheck className="size-3.5" />
-                        Request review
-                    </TabsTrigger>
-                </TabsList>
-            </Tabs>
-            <p className="text-muted-foreground -mt-1 text-xs">
+            <div className="bg-muted inline-flex items-center gap-0.5 rounded-full p-0.5">
+                {COMPOSER_TYPES.map((option) => (
+                    <Tooltip key={option.value}>
+                        <TooltipTrigger asChild>
+                            <button
+                                type="button"
+                                aria-label={option.label}
+                                aria-pressed={data.type === option.value}
+                                onClick={() => setData('type', option.value)}
+                                className={cn(
+                                    'flex size-7 items-center justify-center rounded-full transition-colors',
+                                    data.type === option.value
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground',
+                                )}
+                            >
+                                <option.icon className="size-3.5" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            {option.label}
+                        </TooltipContent>
+                    </Tooltip>
+                ))}
+            </div>
+            <p className="text-muted-foreground text-xs">
                 {data.type === 'comment' &&
                     'General discussion, feedback, or a status update - purely informational, nothing to resolve.'}
                 {data.type === 'change_request' &&
-                    'Flags something that must change before this phase can move forward - stays "open" on the timeline until a manager marks it resolved.'}
-                {data.type === 'review' &&
-                    'Tag someone to formally approve or request changes on this - the cycle stays open until they approve.'}
+                    (data.reviewer_id
+                        ? "Tag someone to formally approve or request changes - stays open until they approve."
+                        : 'Flags something that must change before this phase can move forward - stays open until a manager marks it resolved, or assign a reviewer below to require their sign-off.')}
             </p>
 
-            {data.type === 'review' && (
+            {data.type === 'change_request' && (
                 <Select
-                    value={data.reviewer_id ? String(data.reviewer_id) : ''}
+                    value={data.reviewer_id ? String(data.reviewer_id) : 'none'}
                     onValueChange={(value) =>
-                        setData('reviewer_id', Number(value))
+                        setData(
+                            'reviewer_id',
+                            value === 'none' ? '' : Number(value),
+                        )
                     }
                 >
                     <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a reviewer" />
+                        <SelectValue placeholder="Assign a reviewer (optional)" />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem value="none">No reviewer</SelectItem>
                         {projectMembers.map((member) => (
                             <SelectItem
                                 key={member.id}
@@ -502,37 +758,60 @@ function Composer({
                 <p className="text-destructive text-xs">{errors.reviewer_id}</p>
             )}
 
-            <Textarea
+            <MentionTextarea
                 rows={3}
                 placeholder={
                     data.type === 'comment'
-                        ? 'Share an update or ask a question...'
-                        : data.type === 'change_request'
-                          ? 'Describe the change you need...'
-                          : 'Describe what needs to be reviewed...'
+                        ? 'Share an update or ask a question... (@ to mention someone)'
+                        : 'Describe what needs to change or be reviewed... (@ to mention someone)'
                 }
                 value={data.body}
-                onChange={(e) => setData('body', e.target.value)}
+                onChange={(body) => setData('body', body)}
+                members={projectMembers}
             />
 
             <div className="flex items-center justify-between gap-2">
-                <label className="text-muted-foreground flex cursor-pointer items-center gap-1.5 text-xs hover:underline">
-                    <Paperclip className="size-3.5" />
-                    {data.attachment ? data.attachment.name : 'Attach file'}
-                    <input
-                        type="file"
-                        className="hidden"
-                        onChange={handleAttachmentChange}
-                    />
-                </label>
+                {data.attachment || selectedExistingFile ? (
+                    <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+                        <Paperclip className="size-3.5 shrink-0" />
+                        <span className="max-w-40 truncate">
+                            {data.attachment?.name ??
+                                selectedExistingFile?.name}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={clearAttachment}
+                            className="hover:text-foreground shrink-0"
+                        >
+                            <X className="size-3.5" />
+                            <span className="sr-only">Remove attachment</span>
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-3">
+                        <label className="text-muted-foreground flex cursor-pointer items-center gap-1.5 text-xs hover:underline">
+                            <Paperclip className="size-3.5" />
+                            Attach file
+                            <input
+                                type="file"
+                                className="hidden"
+                                onChange={handleAttachmentChange}
+                            />
+                        </label>
+                        <button
+                            type="button"
+                            onClick={() => setPickerOpen(true)}
+                            className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 text-xs hover:underline"
+                        >
+                            <FolderOpen className="size-3.5" />
+                            From project files
+                        </button>
+                    </div>
+                )}
                 <Button
                     type="submit"
                     size="sm"
-                    disabled={
-                        processing ||
-                        data.body.trim() === '' ||
-                        (data.type === 'review' && !data.reviewer_id)
-                    }
+                    disabled={processing || data.body.trim() === ''}
                 >
                     Send
                 </Button>
@@ -540,6 +819,13 @@ function Composer({
             {errors.body && (
                 <p className="text-destructive text-xs">{errors.body}</p>
             )}
+
+            <AttachExistingFileDialog
+                open={pickerOpen}
+                onOpenChange={setPickerOpen}
+                files={projectFiles}
+                onSelect={handlePickExisting}
+            />
         </form>
     );
 }
@@ -556,6 +842,7 @@ export function PhaseTimeline({
     canManage,
     nextPhaseName,
     projectMembers,
+    projectFiles,
 }: {
     projectId: number;
     phase: TimelinePhase;
@@ -563,6 +850,7 @@ export function PhaseTimeline({
     canManage: boolean;
     nextPhaseName: string | null;
     projectMembers: TaggableMember[];
+    projectFiles: ProjectStorageFile[];
 }) {
     const currentUserId = usePage().props.auth.user.id;
 
@@ -585,31 +873,43 @@ export function PhaseTimeline({
     const hasOpenChangeRequests = phase.open_change_requests_count > 0;
     const hasApproval = activities.some((a) => a.type === 'approved');
 
+    let lastDateKey: string | null = null;
+
     return (
-        <div className="flex h-full flex-col">
-            <div className="flex-1 space-y-3 overflow-auto p-3">
+        <div className="flex h-full min-h-0 flex-col">
+            <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
                 {activities.length === 0 ? (
                     <EmptyState
                         icon={MessageCircle}
                         message="No activity yet. Start the conversation below."
                     />
                 ) : (
-                    activities.map((activity) =>
-                        activity.type === 'comment' ||
-                        activity.type === 'change_request' ||
-                        activity.type === 'review' ? (
-                            <ActivityCard
-                                key={activity.id}
-                                activity={activity}
-                                projectId={projectId}
-                                phaseId={phase.id}
-                                canManage={canManage}
-                                currentUserId={currentUserId}
-                            />
-                        ) : (
-                            <SystemLine key={activity.id} activity={activity} />
-                        ),
-                    )
+                    activities.map((activity) => {
+                        const key = dateKey(activity.created_at);
+                        const showDivider = key !== lastDateKey;
+                        lastDateKey = key;
+
+                        return (
+                            <div key={activity.id} className="space-y-2">
+                                {showDivider && (
+                                    <DateDivider iso={activity.created_at} />
+                                )}
+                                {activity.type === 'comment' ||
+                                activity.type === 'change_request' ? (
+                                    <ActivityCard
+                                        activity={activity}
+                                        projectId={projectId}
+                                        phaseId={phase.id}
+                                        canManage={canManage}
+                                        currentUserId={currentUserId}
+                                        projectMembers={projectMembers}
+                                    />
+                                ) : (
+                                    <SystemLine activity={activity} />
+                                )}
+                            </div>
+                        );
+                    })
                 )}
             </div>
 
@@ -618,6 +918,7 @@ export function PhaseTimeline({
                     projectId={projectId}
                     phaseId={phase.id}
                     projectMembers={projectMembers}
+                    projectFiles={projectFiles}
                 />
             </div>
 

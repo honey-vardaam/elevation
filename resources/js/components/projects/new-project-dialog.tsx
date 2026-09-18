@@ -24,11 +24,19 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { store } from '@/routes/projects';
 import type {
     AssignableUser,
+    PhaseFlowTemplateSummary,
     ProjectStatus,
     ProjectType,
     TeamSummary,
@@ -53,7 +61,7 @@ type FormData = {
     start_date: string;
     end_date: string;
     use_default_folders: boolean;
-    apply_phase_pipeline: boolean;
+    phase_flow_template_id: number | null;
     members: MemberSelection[];
 };
 
@@ -76,18 +84,18 @@ const initialData: FormData = {
     start_date: '',
     end_date: '',
     use_default_folders: true,
-    apply_phase_pipeline: true,
+    phase_flow_template_id: null,
     members: [],
 };
 
 export function NewProjectDialog({
     assignableUsers,
     teams,
-    hasPhaseTemplates,
+    phaseFlowTemplates,
 }: {
     assignableUsers: AssignableUser[];
     teams: TeamSummary[];
-    hasPhaseTemplates: boolean;
+    phaseFlowTemplates: PhaseFlowTemplateSummary[];
 }) {
     const [open, setOpen] = useState(false);
     const [bannerPreview, setBannerPreview] = useState<string | null>(null);
@@ -144,7 +152,7 @@ export function NewProjectDialog({
             <DialogTrigger asChild>
                 <Button>New Project</Button>
             </DialogTrigger>
-            <DialogContent className="flex max-h-[85vh] w-full flex-col sm:max-w-xl">
+            <DialogContent className="flex max-h-[85vh] w-full flex-col sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>New project</DialogTitle>
                     <DialogDescription>
@@ -229,6 +237,7 @@ export function NewProjectDialog({
                                 onValueChange={(status) =>
                                     setData('status', status)
                                 }
+                                className="w-full"
                             />
                         </Field>
                         <Field
@@ -239,6 +248,7 @@ export function NewProjectDialog({
                             <ProjectTypeSelect
                                 value={data.type}
                                 onValueChange={(type) => setData('type', type)}
+                                className="w-full"
                             />
                         </Field>
                     </div>
@@ -393,22 +403,46 @@ export function NewProjectDialog({
                         </Label>
                     </div>
 
-                    {hasPhaseTemplates && (
-                        <div className="flex items-center gap-3">
-                            <Checkbox
-                                id="apply_phase_pipeline"
-                                checked={data.apply_phase_pipeline}
-                                onCheckedChange={(checked) =>
+                    {phaseFlowTemplates.length > 0 && (
+                        <Field
+                            htmlFor="phase_flow_template_id"
+                            label="Phase pipeline"
+                        >
+                            <Select
+                                value={
+                                    data.phase_flow_template_id === null
+                                        ? 'none'
+                                        : String(data.phase_flow_template_id)
+                                }
+                                onValueChange={(value) =>
                                     setData(
-                                        'apply_phase_pipeline',
-                                        checked === true,
+                                        'phase_flow_template_id',
+                                        value === 'none' ? null : Number(value),
                                     )
                                 }
-                            />
-                            <Label htmlFor="apply_phase_pipeline">
-                                Apply organization's phase pipeline
-                            </Label>
-                        </div>
+                            >
+                                <SelectTrigger
+                                    id="phase_flow_template_id"
+                                    className="w-full"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">
+                                        No pipeline
+                                    </SelectItem>
+                                    {phaseFlowTemplates.map((flow) => (
+                                        <SelectItem
+                                            key={flow.id}
+                                            value={String(flow.id)}
+                                        >
+                                            {flow.name} ({flow.steps_count}{' '}
+                                            phases)
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </Field>
                     )}
                 </form>
 

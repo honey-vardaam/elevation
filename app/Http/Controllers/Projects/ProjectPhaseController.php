@@ -12,6 +12,8 @@ use App\Models\PhaseActivity;
 use App\Models\PhaseTemplate;
 use App\Models\Project;
 use App\Models\ProjectPhase;
+use App\Support\PhaseActivityPresenter;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +22,27 @@ use Inertia\Inertia;
 
 class ProjectPhaseController extends Controller
 {
+    /**
+     * A read-only view of one phase's conversation, for reviewing a phase
+     * that isn't the project's current one anymore (the persistent chat
+     * panel only ever shows the current phase).
+     */
+    public function show(Request $request, Project $project, ProjectPhase $phase): JsonResponse
+    {
+        abort_unless($phase->project_id === $project->id, 404);
+        Gate::authorize('view', $project);
+
+        $activities = $phase->activities()
+            ->with(['author:id,name', 'reviewer:id,name', 'replies.author:id,name', 'attachment:id,name,size,mime_type', 'resolvedBy:id,name'])
+            ->get()
+            ->map(fn (PhaseActivity $activity) => PhaseActivityPresenter::toArray($activity, $project));
+
+        return response()->json([
+            'phase' => ['id' => $phase->id, 'name' => $phase->name, 'status' => $phase->status->value],
+            'activities' => $activities,
+        ]);
+    }
+
     public function store(StoreProjectPhaseRequest $request, Project $project): RedirectResponse
     {
         $template = PhaseTemplate::findOrFail((int) $request->validated('phase_template_id'));
@@ -123,24 +146,6 @@ class ProjectPhaseController extends Controller
         $activity->project_phase_id = $phase->id;
         $activity->user_id = $userId;
         $activity->save();
-    }
-
-    public function reorder(Request $request, Project $project): RedirectResponse
-    {
-        Gate::authorize('update', $project);
-
-        $ids = $request->validate([
-            'ids' => ['required', 'array'],
-            'ids.*' => ['integer', 'exists:project_phases,id'],
-        ])['ids'];
-
-        foreach ($ids as $index => $id) {
-            ProjectPhase::where('id', $id)
-                ->where('project_id', $project->id)
-                ->update(['sort_order' => $index]);
-        }
-
-        return back();
     }
 
     public function destroy(Request $request, Project $project, ProjectPhase $phase): RedirectResponse

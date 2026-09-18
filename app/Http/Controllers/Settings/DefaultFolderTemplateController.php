@@ -10,9 +10,28 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class DefaultFolderTemplateController extends Controller
 {
+    public function index(Request $request): Response
+    {
+        Gate::authorize('viewAny', DefaultFolderTemplate::class);
+
+        $defaultFolderTemplates = DefaultFolderTemplate::query()
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (DefaultFolderTemplate $folder) => [
+                'id' => $folder->id,
+                'name' => $folder->name,
+                'sort_order' => $folder->sort_order,
+            ]);
+
+        return Inertia::render('settings/default-folder-templates', [
+            'defaultFolderTemplates' => $defaultFolderTemplates,
+        ]);
+    }
+
     public function store(StoreDefaultFolderTemplateRequest $request): RedirectResponse
     {
         $folderTemplate = new DefaultFolderTemplate($request->validated());
@@ -21,7 +40,7 @@ class DefaultFolderTemplateController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Folder added.')]);
 
-        return to_route('phase-templates.index');
+        return to_route('default-folder-templates.index');
     }
 
     public function update(UpdateDefaultFolderTemplateRequest $request, DefaultFolderTemplate $defaultFolderTemplate): RedirectResponse
@@ -30,7 +49,7 @@ class DefaultFolderTemplateController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Folder updated.')]);
 
-        return to_route('phase-templates.index');
+        return to_route('default-folder-templates.index');
     }
 
     public function reorder(Request $request): RedirectResponse
@@ -57,6 +76,6 @@ class DefaultFolderTemplateController extends Controller
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Folder removed.')]);
 
-        return to_route('phase-templates.index');
+        return to_route('default-folder-templates.index');
     }
 }

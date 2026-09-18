@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ActivityStatus;
+use App\Enums\PhaseActivityType;
 use App\Models\PhaseActivity;
 use App\Models\Project;
 use App\Models\ProjectPhase;
 use App\Support\PhaseActivityPresenter;
+use App\Support\ProjectFilePresenter;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,9 +31,15 @@ class InboxController extends Controller
             ->get();
 
         $conversations = $phases
-            ->map(function (ProjectPhase $phase) {
+            ->map(function (ProjectPhase $phase) use ($user) {
                 $latest = $phase->latestActivity();
                 $latest?->loadMissing('author:id,name', 'reviewer:id,name');
+
+                $pendingReviewForMe = PhaseActivity::where('project_phase_id', $phase->id)
+                    ->where('type', PhaseActivityType::ChangeRequest)
+                    ->where('activity_status', ActivityStatus::Open)
+                    ->where('reviewer_id', $user->id)
+                    ->exists();
 
                 return [
                     'phase_id' => $phase->id,
@@ -38,6 +47,7 @@ class InboxController extends Controller
                     'phase_status' => $phase->status->value,
                     'project' => ['id' => $phase->project->id, 'name' => $phase->project->name],
                     'open_change_requests_count' => $phase->openChangeRequestsCount(),
+                    'pending_review_for_me' => $pendingReviewForMe,
                     'last_activity' => $latest ? [
                         'author_name' => $latest->author->name,
                         'preview' => PhaseActivityPresenter::preview($latest),
@@ -57,13 +67,14 @@ class InboxController extends Controller
 
         $activities = $activePhase !== null
             ? $activePhase->activities()
-                ->with(['author:id,name', 'reviewer:id,name', 'replies.author:id,name', 'attachment:id,name,size', 'resolvedBy:id,name'])
+                ->with(['author:id,name', 'reviewer:id,name', 'replies.author:id,name', 'attachment:id,name,size,mime_type', 'resolvedBy:id,name'])
                 ->get()
                 ->map(fn (PhaseActivity $activity) => PhaseActivityPresenter::toArray($activity, $activePhase->project))
             : [];
 
         $nextPhaseName = null;
         $taggableMembers = [];
+        $projectFiles = [];
 
         if ($activePhase !== null) {
             $nextPhaseName = $activePhase->project->phases()
@@ -72,6 +83,7 @@ class InboxController extends Controller
                 ->value('name');
 
             $taggableMembers = $this->taggableMembers($activePhase->project);
+            $projectFiles = ProjectFilePresenter::forProject($activePhase->project);
         }
 
         return Inertia::render('inbox', [
@@ -88,6 +100,7 @@ class InboxController extends Controller
             'canManage' => $activePhase !== null && $activePhase->project->isManagedBy($user),
             'nextPhaseName' => $nextPhaseName,
             'taggableMembers' => $taggableMembers,
+            'projectFiles' => $projectFiles,
         ]);
     }
 

@@ -33,6 +33,7 @@ export function NewFolderDialog({
 
                 <Form
                     {...store.form(projectId)}
+                    options={{ preserveScroll: true, preserveState: true }}
                     onSuccess={() => setOpen(false)}
                     resetOnSuccess
                     className="space-y-4"

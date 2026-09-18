@@ -2,18 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ProjectActivityType;
 use App\Http\Requests\Projects\StoreProjectRequest;
 use App\Http\Requests\Projects\UpdateProjectRequest;
 use App\Models\Folder;
 use App\Models\PhaseActivity;
+use App\Models\PhaseFlowTemplate;
 use App\Models\PhaseTemplate;
 use App\Models\Project;
+use App\Models\ProjectActivity;
 use App\Models\ProjectFile;
 use App\Models\ProjectMember;
 use App\Models\ProjectPhase;
 use App\Models\Team;
 use App\Models\User;
 use App\Support\PhaseActivityPresenter;
+use App\Support\ProjectFilePresenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -50,15 +54,29 @@ class ProjectController extends Controller
                 ? User::query()->orderBy('name')->get(['id', 'name', 'email'])
                 : [],
             'teams' => $canCreate ? Team::summaries() : [],
-            'hasPhaseTemplates' => PhaseTemplate::query()->exists(),
+            'phaseFlowTemplates' => PhaseFlowTemplate::query()
+                ->with('steps')
+                ->orderBy('name')
+                ->get()
+                ->filter(fn (PhaseFlowTemplate $flow) => $flow->isReady())
+                ->values()
+                ->map(fn (PhaseFlowTemplate $flow) => [
+                    'id' => $flow->id,
+                    'name' => $flow->name,
+                    'description' => $flow->description,
+                    'steps_count' => $flow->steps->count(),
+                    'is_ready' => true,
+                ]),
         ]);
     }
 
     public function store(StoreProjectRequest $request): RedirectResponse
     {
-        $project = new Project($request->safe()->except(['banner', 'use_default_folders', 'apply_phase_pipeline', 'members']));
+        $project = new Project($request->safe()->except(['banner', 'use_default_folders', 'members']));
         $project->owner_id = $request->user()->id;
         $project->save();
+
+        ProjectActivity::log($project, ProjectActivityType::ProjectCreated, $request->user());
 
         if ($request->hasFile('banner')) {
             $project->banner_path = $request->file('banner')->store('projects/banners', 'public');
@@ -76,8 +94,8 @@ class ProjectController extends Controller
             $project->seedDefaultFolders($request->user());
         }
 
-        if ($request->boolean('apply_phase_pipeline')) {
-            $project->seedPhasesFromTemplates();
+        if ($project->phase_flow_template_id) {
+            $project->seedPhasesFromFlow($project->phaseFlowTemplate);
         }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Project created.')]);
@@ -134,6 +152,11 @@ class ProjectController extends Controller
             ->get()
             ->map(fn ($file) => $this->fileToArray($file, $project, $user));
 
+        // Every file in the project, regardless of folder - lets the chat
+        // composer attach something already in storage instead of always
+        // uploading a fresh copy.
+        $projectFiles = ProjectFilePresenter::forProject($project, $allFolders);
+
         $canManagePhases = $project->isManagedBy($user);
 
         $phaseModels = $project->phases()->with('team:id,name')->get();
@@ -161,8 +184,9 @@ class ProjectController extends Controller
             ]),
         ]);
 
-        $availablePhaseTemplates = $canManagePhases
+        $availablePhaseTemplates = $canManagePhases && $project->phase_flow_template_id
             ? PhaseTemplate::query()
+                ->where('phase_flow_template_id', $project->phase_flow_template_id)
                 ->orderBy('sort_order')
                 ->get()
                 ->reject(fn (PhaseTemplate $template) => $phases->contains('phase_template_id', $template->id))
@@ -170,15 +194,21 @@ class ProjectController extends Controller
                 ->map(fn (PhaseTemplate $template) => ['id' => $template->id, 'name' => $template->name])
             : [];
 
-        $activePhaseId = $request->query('panel') ? (int) $request->query('panel') : null;
-        $activePhase = $activePhaseId !== null ? $phaseModels->firstWhere('id', $activePhaseId) : null;
+        $requestedPhaseId = $request->integer('phase');
+        $currentPhase = $requestedPhaseId && $phaseModels->contains('id', $requestedPhaseId)
+            ? $phaseModels->firstWhere('id', $requestedPhaseId)
+            : ($project->currentPhase() ? $phaseModels->firstWhere('id', $project->currentPhase()->id) : null);
 
-        $activities = $activePhase !== null
-            ? $activePhase->activities()
-                ->with(['author:id,name', 'reviewer:id,name', 'replies.author:id,name', 'attachment:id,name,size', 'resolvedBy:id,name'])
+        $activities = $currentPhase !== null
+            ? $currentPhase->activities()
+                ->with(['author:id,name', 'reviewer:id,name', 'replies.author:id,name', 'attachment:id,name,size,mime_type', 'resolvedBy:id,name'])
                 ->get()
                 ->map(fn (PhaseActivity $activity) => PhaseActivityPresenter::toArray($activity, $project))
             : [];
+
+        $nextPhaseName = $currentPhase !== null
+            ? $project->phases()->where('sort_order', '>', $currentPhase->sort_order)->orderBy('sort_order')->value('name')
+            : null;
 
         $members = $project->members()->with('user:id,name,email')->get();
 
@@ -206,14 +236,21 @@ class ProjectController extends Controller
             'teams' => $canManagePhases
                 ? Team::query()->orderBy('name')->get(['id', 'name'])
                 : [],
-            'activePhaseId' => $activePhase?->id,
+            'currentPhaseId' => $currentPhase?->id,
+            'nextPhaseName' => $nextPhaseName,
             'activities' => $activities,
             'taggableMembers' => $taggableMembers,
+            'projectFiles' => $projectFiles,
+            'assignableUsers' => $project->isManagedBy($user)
+                ? User::query()->orderBy('name')->get(['id', 'name', 'email'])
+                : [],
         ]);
     }
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
+        $previousStatus = $project->status;
+
         $project->fill($request->safe()->except(['banner', 'remove_banner']));
 
         if ($request->hasFile('banner')) {
@@ -232,9 +269,16 @@ class ProjectController extends Controller
 
         $project->save();
 
+        if ($project->status !== $previousStatus) {
+            ProjectActivity::log($project, ProjectActivityType::ProjectStatusChanged, $request->user(), meta: [
+                'from' => $previousStatus->value,
+                'to' => $project->status->value,
+            ]);
+        }
+
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Project updated.')]);
 
-        return to_route('projects.show', $project);
+        return back();
     }
 
     public function destroy(Request $request, Project $project): RedirectResponse

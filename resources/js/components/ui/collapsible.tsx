@@ -21,7 +21,9 @@ function CollapsibleTrigger({
 /**
  * Animates open/closed with a genuine height transition (0 -> content height
  * -> 0, driven by Radix's --radix-collapsible-content-height), the same
- * "collapsing" motion Bootstrap's accordion uses - not just a fade.
+ * "collapsing" motion Bootstrap's accordion uses - not just a fade. Timing
+ * (350ms, ease-collapse) matches Bootstrap 5.3's $transition-collapse
+ * exactly, not just the shape of the animation.
  */
 function CollapsibleContent({
   className,
@@ -31,7 +33,7 @@ function CollapsibleContent({
     <CollapsiblePrimitive.CollapsibleContent
       data-slot="collapsible-content"
       className={cn(
-        "overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down",
+        "ease-collapse overflow-hidden duration-[350ms] data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down",
         className
       )}
       {...props}

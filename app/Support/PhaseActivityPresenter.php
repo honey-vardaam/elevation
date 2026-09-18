@@ -26,12 +26,13 @@ class PhaseActivityPresenter
             'resolved_at' => $activity->resolved_at?->toIso8601String(),
             'resolved_by' => $activity->resolvedBy ? ['id' => $activity->resolvedBy->id, 'name' => $activity->resolvedBy->name] : null,
             'reviewer' => $activity->reviewer ? ['id' => $activity->reviewer->id, 'name' => $activity->reviewer->name] : null,
-            'review_status' => $activity->review_status?->value,
+            'activity_status' => $activity->activity_status?->value,
             'author' => ['id' => $activity->author->id, 'name' => $activity->author->name],
             'attachment' => $activity->attachment ? [
                 'id' => $activity->attachment->id,
                 'name' => $activity->attachment->name,
                 'size' => $activity->attachment->size,
+                'mime_type' => $activity->attachment->mime_type,
                 'download_url' => route('projects.files.download', [$project, $activity->attachment]),
             ] : null,
             'created_at' => $activity->created_at->toIso8601String(),
@@ -46,8 +47,10 @@ class PhaseActivityPresenter
     public static function preview(PhaseActivity $activity): string
     {
         return match ($activity->type) {
-            PhaseActivityType::Comment, PhaseActivityType::ChangeRequest => Str::limit((string) $activity->body, 80),
-            PhaseActivityType::Review => 'Requested review from '.($activity->reviewer->name ?? 'someone').': '.Str::limit((string) $activity->body, 60),
+            PhaseActivityType::Comment => Str::limit((string) $activity->body, 80),
+            PhaseActivityType::ChangeRequest => $activity->reviewer_id
+                ? 'Requested review from '.($activity->reviewer->name ?? 'someone').': '.Str::limit((string) $activity->body, 60)
+                : Str::limit((string) $activity->body, 80),
             PhaseActivityType::StatusChanged => 'Changed status to '.ProjectPhaseStatus::from($activity->meta['to'] ?? '')->label(),
             PhaseActivityType::Approved => 'Approved this phase',
             PhaseActivityType::ProjectCompleted => 'Marked the project Completed',

@@ -9,7 +9,6 @@ import {
     Quote,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { SharePanel } from '@/components/portfolio/share-panel';
 import { SiteMap } from '@/components/portfolio/site-map';
 import { StatsStrip } from '@/components/portfolio/stats-strip';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -40,7 +39,7 @@ const ACCENT = 'text-muted-foreground';
 
 /** Faint drafting-paper grid, ruled in the theme's own foreground color. */
 const GRID_PAPER =
-    'bg-[linear-gradient(color-mix(in_oklch,var(--foreground)_8%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--foreground)_8%,transparent)_1px,transparent_1px)] bg-[size:36px_36px] bg-[position:-1px_-1px]';
+    'bg-[linear-gradient(color-mix(in_oklch,var(--foreground)_2%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--foreground)_2%,transparent)_1px,transparent_1px)] bg-[size:36px_36px] bg-[position:-1px_-1px]';
 
 type PublicPortfolio = {
     year: number;
@@ -117,8 +116,6 @@ export default function Public({
                 ))}
 
                 <Footer
-                    shareUrl={portfolio.share_url}
-                    title={title}
                     year={portfolio.year}
                     sheetCount={renderableSections.length}
                 />
@@ -229,7 +226,7 @@ function Hero({
                 <div className="flex h-full items-end px-6 pb-10 sm:px-10 sm:pb-14">
                     <div className="w-full">
                         <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-6">
-                            <div>
+                            <Reveal>
                                 <p className="flex items-center gap-2 font-mono text-xs tracking-[0.3em] text-white/70 uppercase">
                                     <Plus className="size-3" />
                                     {portfolio.year} &middot; Sheet 00
@@ -242,7 +239,7 @@ function Hero({
                                         {portfolio.intro}
                                     </p>
                                 )}
-                            </div>
+                            </Reveal>
 
                             <div className="hidden shrink-0 rounded border border-white/25 px-4 py-3 font-mono text-[11px] text-white/60 sm:block">
                                 <p className="tracking-[0.2em] uppercase">
@@ -299,16 +296,16 @@ function SectionHeading({
     title: string;
 }) {
     return (
-        <div className="flex items-start gap-4">
+        <div className="flex items-center gap-4 sm:gap-5">
             <span
                 className={cn(
-                    'mt-1 shrink-0 font-mono text-xs tabular-nums',
-                    ACCENT,
+                    'shrink-0 font-mono text-6xl leading-none font-semibold tabular-nums',
+                    INK,
                 )}
             >
                 {String(sheet).padStart(2, '0')}
             </span>
-            <div>
+            <div className="min-w-0">
                 {eyebrow && (
                     <p
                         className={cn(
@@ -319,7 +316,7 @@ function SectionHeading({
                         {eyebrow}
                     </p>
                 )}
-                <h2 className="font-heading mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+                <h2 className="font-heading mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
                     {title}
                 </h2>
             </div>
@@ -346,7 +343,7 @@ function PortfolioSection({
 }) {
     if (section.type === 'stats') {
         return (
-            <Reveal className="border-border w-full border-y py-20">
+            <Reveal className="w-full py-20">
                 <div className="mx-auto max-w-5xl px-6">
                     <SectionHeading
                         sheet={sheet}
@@ -384,7 +381,7 @@ function PortfolioSection({
     if (section.type === 'gallery' && photos.length > 0) {
         return (
             <Reveal className="w-full py-20">
-                <div className="mx-auto max-w-6xl px-6">
+                <div className="mx-auto max-w-5xl px-6">
                     <SectionHeading
                         sheet={sheet}
                         eyebrow="Selected work"
@@ -469,7 +466,7 @@ function PortfolioSection({
 
     if (section.type === 'company_info') {
         return (
-            <Reveal className="border-border w-full border-y py-20">
+            <Reveal className="w-full py-20">
                 <div className="mx-auto max-w-2xl px-6">
                     <Avatar className="border-border size-16 rounded border">
                         {company.logo_url && (
@@ -520,16 +517,18 @@ function PortfolioSection({
     if (section.type === 'custom_text' && (section.title || section.body)) {
         return (
             <Reveal className="w-full py-16">
-                <div className="mx-auto max-w-2xl px-6">
-                    {section.title && (
+                {section.title && (
+                    <div className="mx-auto max-w-5xl px-6">
                         <SectionHeading sheet={sheet} title={section.title} />
-                    )}
-                    {section.body && (
+                    </div>
+                )}
+                {section.body && (
+                    <div className="mx-auto max-w-2xl px-6">
                         <p className="text-muted-foreground mt-4 leading-relaxed whitespace-pre-line">
                             {section.body}
                         </p>
-                    )}
-                </div>
+                    </div>
+                )}
             </Reveal>
         );
     }
@@ -537,31 +536,14 @@ function PortfolioSection({
     return null;
 }
 
-function Footer({
-    shareUrl,
-    title,
-    year,
-    sheetCount,
-}: {
-    shareUrl: string;
-    title: string;
-    year: number;
-    sheetCount: number;
-}) {
+function Footer({ year, sheetCount }: { year: number; sheetCount: number }) {
     return (
         <footer className="w-full border-t border-white/15 bg-black py-16 text-white">
             <div className="mx-auto max-w-md px-6">
-                <p className="font-mono text-xs tracking-[0.25em] text-white/70 uppercase">
-                    Share this set
-                </p>
-                <div className="mt-6 rounded border border-white/15 bg-white p-4 text-neutral-900">
-                    <SharePanel shareUrl={shareUrl} title={title} />
-                </div>
-
                 <DimensionRule
                     label={`${sheetCount + 1} sheets`}
                     tone="dark"
-                    className="mt-6 px-0"
+                    className="px-0"
                 />
 
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-3 font-mono text-[11px] text-white/50">

@@ -182,6 +182,62 @@ class DashboardTest extends TestCase
         );
     }
 
+    public function test_weekly_hours_defaults_to_the_current_week()
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user, 'owner')->create();
+
+        TimeEntry::factory()->for($user)->for($project)->create([
+            'started_at' => today()->setTime(9, 0),
+            'ended_at' => today()->setTime(11, 0),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->has('weeklyHours.days', 7)
+            ->where('weeklyHours.weeksAgo', 0)
+            ->where('weeklyHours.total', 2)
+            ->where('weeklyHours.days.6.date', today()->toDateString())
+            ->where('weeklyHours.days.6.hours', 2)
+        );
+    }
+
+    public function test_weekly_hours_can_navigate_to_a_past_week_via_weeks_ago()
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user, 'owner')->create();
+
+        TimeEntry::factory()->for($user)->for($project)->create([
+            'started_at' => today()->subDays(7)->setTime(9, 0),
+            'ended_at' => today()->subDays(7)->setTime(12, 0),
+        ]);
+        // In the current week - should not be counted for weeks_ago=1.
+        TimeEntry::factory()->for($user)->for($project)->create([
+            'started_at' => today()->setTime(9, 0),
+            'ended_at' => today()->setTime(10, 0),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard', ['weeks_ago' => 1]));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('weeklyHours.weeksAgo', 1)
+            ->where('weeklyHours.total', 3)
+            ->where('weeklyHours.days.6.date', today()->subDays(7)->toDateString())
+        );
+    }
+
+    public function test_weekly_hours_ignores_a_negative_weeks_ago()
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('dashboard', ['weeks_ago' => -3]));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('weeklyHours.weeksAgo', 0)
+        );
+    }
+
     public function test_allotted_projects_only_includes_accessible_projects()
     {
         $user = User::factory()->create();

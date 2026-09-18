@@ -82,6 +82,46 @@ class ProjectCrudTest extends TestCase
         $this->assertSame('Renamed Project', $project->fresh()->name);
     }
 
+    public function test_owner_can_update_dates_status_and_client_details()
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user, 'owner')->create(['status' => 'ongoing']);
+
+        $response = $this->actingAs($user)->patch(route('projects.update', $project), [
+            'name' => $project->name,
+            'status' => 'on_hold',
+            'start_date' => '2026-01-05',
+            'end_date' => '2026-06-30',
+            'client_name' => 'The Whitfield Family',
+            'client_email' => 'client@example.com',
+            'client_phone' => '555-0142',
+            'site_address' => '12 Harborview Lane',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $fresh = $project->fresh();
+        $this->assertSame('on_hold', $fresh->status->value);
+        $this->assertSame('2026-01-05', $fresh->start_date->toDateString());
+        $this->assertSame('2026-06-30', $fresh->end_date->toDateString());
+        $this->assertSame('The Whitfield Family', $fresh->client_name);
+        $this->assertSame('client@example.com', $fresh->client_email);
+        $this->assertSame('555-0142', $fresh->client_phone);
+        $this->assertSame('12 Harborview Lane', $fresh->site_address);
+    }
+
+    public function test_owner_can_change_status_without_resending_other_fields()
+    {
+        $user = User::factory()->create();
+        $project = Project::factory()->for($user, 'owner')->create(['status' => 'ongoing']);
+
+        $response = $this->actingAs($user)->patch(route('projects.update', $project), [
+            'status' => 'on_hold',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('on_hold', $project->fresh()->status->value);
+    }
+
     public function test_manager_can_update_a_project()
     {
         $user = User::factory()->create();

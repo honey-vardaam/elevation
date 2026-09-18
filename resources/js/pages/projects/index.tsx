@@ -37,6 +37,7 @@ import { truncate } from '@/lib/utils';
 import { destroy, index, show, update } from '@/routes/projects';
 import type {
     AssignableUser,
+    PhaseFlowTemplateSummary,
     ProjectStatus,
     ProjectSummary,
     TeamSummary,
@@ -51,13 +52,13 @@ export default function Index({
     can,
     assignableUsers,
     teams,
-    hasPhaseTemplates,
+    phaseFlowTemplates,
 }: {
     projects: ProjectSummary[];
     can: { create: boolean };
     assignableUsers: AssignableUser[];
     teams: TeamSummary[];
-    hasPhaseTemplates: boolean;
+    phaseFlowTemplates: PhaseFlowTemplateSummary[];
 }) {
     const [editing, setEditing] = useState<ProjectSummary | null>(null);
     const [deleting, setDeleting] = useState<ProjectSummary | null>(null);
@@ -209,11 +210,11 @@ export default function Index({
                 <NewProjectDialog
                     assignableUsers={assignableUsers}
                     teams={teams}
-                    hasPhaseTemplates={hasPhaseTemplates}
+                    phaseFlowTemplates={phaseFlowTemplates}
                 />
             ) : undefined,
         });
-    }, [can.create, assignableUsers, teams, hasPhaseTemplates]);
+    }, [can.create, assignableUsers, teams, phaseFlowTemplates]);
 
     return (
         <>
@@ -244,7 +245,7 @@ export default function Index({
                                             {status.label}
                                             <Badge
                                                 variant="secondary"
-                                                className="ml-1"
+                                                className="ml-1 flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 py-0 text-xs leading-none font-medium tabular-nums"
                                             >
                                                 {count}
                                             </Badge>

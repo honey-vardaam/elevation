@@ -22,8 +22,6 @@ export type ProjectTimelineEntry = {
     status: ProjectStatus;
     start_date: string | null;
     end_date: string | null;
-    start_offset_pct: number;
-    width_pct: number;
 };
 
 export type DueReminder = {

@@ -83,6 +83,14 @@ export type ProjectFileSummary = {
     };
 };
 
+export type ProjectStorageFile = {
+    id: number;
+    name: string;
+    size: number;
+    mime_type: string | null;
+    folder_path: string | null;
+};
+
 export type ProjectDetailFields = {
     id: number;
     name: string;

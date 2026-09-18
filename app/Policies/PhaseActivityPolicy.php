@@ -19,14 +19,27 @@ class PhaseActivityPolicy
         return $phase->project->hasAccess($user);
     }
 
+    /**
+     * Only the author may delete their own message - no manager override,
+     * so collaborators can trust that deleting is theirs to control.
+     */
+    public function delete(User $user, PhaseActivity $activity): bool
+    {
+        return $activity->user_id === $user->id;
+    }
+
+    /**
+     * Close a request without a reviewer decision, or reopen one that's
+     * already resolved: a manager/owner only.
+     */
     public function resolve(User $user, PhaseActivity $activity): bool
     {
         return $activity->projectPhase->project->isManagedBy($user);
     }
 
     /**
-     * Approve or request changes on a review: the specifically tagged
-     * reviewer, or a manager/owner as an override.
+     * Approve or request changes on a request that has a tagged reviewer:
+     * the specifically tagged reviewer, or a manager/owner as an override.
      */
     public function decide(User $user, PhaseActivity $activity): bool
     {
@@ -35,7 +48,7 @@ class PhaseActivityPolicy
     }
 
     /**
-     * Put a "changes requested" review back to pending: the original
+     * Put a "changes requested" request back to open: the original
      * submitter, or a manager/owner as an override.
      */
     public function resubmit(User $user, PhaseActivity $activity): bool

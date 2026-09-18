@@ -14,7 +14,7 @@ class PhaseReviewTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_a_member_can_request_a_review_tagging_a_project_member()
+    public function test_a_member_can_open_a_request_tagging_a_reviewer()
     {
         $author = User::factory()->create();
         $project = Project::factory()->create();
@@ -24,7 +24,7 @@ class PhaseReviewTest extends TestCase
         $phase = ProjectPhase::factory()->for($project)->create();
 
         $response = $this->actingAs($author)->post(route('projects.phases.activities.store', [$project, $phase]), [
-            'type' => 'review',
+            'type' => 'change_request',
             'body' => 'Please check the floor plan revision.',
             'reviewer_id' => $reviewer->id,
         ]);
@@ -33,9 +33,9 @@ class PhaseReviewTest extends TestCase
         $this->assertDatabaseHas('phase_activities', [
             'project_phase_id' => $phase->id,
             'user_id' => $author->id,
-            'type' => 'review',
+            'type' => 'change_request',
             'reviewer_id' => $reviewer->id,
-            'review_status' => 'pending',
+            'activity_status' => 'open',
         ]);
     }
 
@@ -48,7 +48,7 @@ class PhaseReviewTest extends TestCase
         $phase = ProjectPhase::factory()->for($project)->create();
 
         $response = $this->actingAs($author)->post(route('projects.phases.activities.store', [$project, $phase]), [
-            'type' => 'review',
+            'type' => 'change_request',
             'body' => 'Please check this.',
             'reviewer_id' => $outsider->id,
         ]);
@@ -62,17 +62,17 @@ class PhaseReviewTest extends TestCase
         $project = Project::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
 
-        $response = $this->actingAs($reviewer)->patch(route('projects.phases.activities.decide', [$project, $phase, $review]), [
+        $response = $this->actingAs($reviewer)->patch(route('projects.phases.activities.decide', [$project, $phase, $request]), [
             'decision' => 'approved',
         ]);
 
         $response->assertSessionHasNoErrors();
-        $review->refresh();
-        $this->assertSame('approved', $review->review_status->value);
-        $this->assertNotNull($review->resolved_at);
-        $this->assertSame($reviewer->id, $review->resolved_by);
+        $request->refresh();
+        $this->assertSame('resolved', $request->activity_status->value);
+        $this->assertNotNull($request->resolved_at);
+        $this->assertSame($reviewer->id, $request->resolved_by);
     }
 
     public function test_the_tagged_reviewer_can_request_changes_with_a_note()
@@ -81,19 +81,19 @@ class PhaseReviewTest extends TestCase
         $project = Project::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
 
-        $response = $this->actingAs($reviewer)->patch(route('projects.phases.activities.decide', [$project, $phase, $review]), [
+        $response = $this->actingAs($reviewer)->patch(route('projects.phases.activities.decide', [$project, $phase, $request]), [
             'decision' => 'changes_requested',
             'note' => 'Please adjust the elevation heights.',
         ]);
 
         $response->assertSessionHasNoErrors();
-        $review->refresh();
-        $this->assertSame('changes_requested', $review->review_status->value);
-        $this->assertNull($review->resolved_at);
+        $request->refresh();
+        $this->assertSame('changes_requested', $request->activity_status->value);
+        $this->assertNull($request->resolved_at);
         $this->assertDatabaseHas('phase_activities', [
-            'parent_id' => $review->id,
+            'parent_id' => $request->id,
             'body' => 'Please adjust the elevation heights.',
             'type' => 'comment',
         ]);
@@ -105,9 +105,9 @@ class PhaseReviewTest extends TestCase
         $project = Project::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
 
-        $response = $this->actingAs($reviewer)->patch(route('projects.phases.activities.decide', [$project, $phase, $review]), [
+        $response = $this->actingAs($reviewer)->patch(route('projects.phases.activities.decide', [$project, $phase, $request]), [
             'decision' => 'changes_requested',
         ]);
 
@@ -122,14 +122,14 @@ class PhaseReviewTest extends TestCase
         $reviewer = User::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
 
-        $response = $this->actingAs($manager)->patch(route('projects.phases.activities.decide', [$project, $phase, $review]), [
+        $response = $this->actingAs($manager)->patch(route('projects.phases.activities.decide', [$project, $phase, $request]), [
             'decision' => 'approved',
         ]);
 
         $response->assertSessionHasNoErrors();
-        $this->assertSame('approved', $review->fresh()->review_status->value);
+        $this->assertSame('resolved', $request->fresh()->activity_status->value);
     }
 
     public function test_an_unrelated_member_cannot_decide()
@@ -140,28 +140,28 @@ class PhaseReviewTest extends TestCase
         $reviewer = User::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
 
-        $response = $this->actingAs($bystander)->patch(route('projects.phases.activities.decide', [$project, $phase, $review]), [
+        $response = $this->actingAs($bystander)->patch(route('projects.phases.activities.decide', [$project, $phase, $request]), [
             'decision' => 'approved',
         ]);
 
         $response->assertForbidden();
     }
 
-    public function test_deciding_an_already_approved_review_is_rejected()
+    public function test_deciding_an_already_approved_request_is_rejected()
     {
         $reviewer = User::factory()->create();
         $project = Project::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
-            'review_status' => 'approved',
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
+            'activity_status' => 'resolved',
             'resolved_at' => now(),
             'resolved_by' => $reviewer->id,
         ]);
 
-        $response = $this->actingAs($reviewer)->patch(route('projects.phases.activities.decide', [$project, $phase, $review]), [
+        $response = $this->actingAs($reviewer)->patch(route('projects.phases.activities.decide', [$project, $phase, $request]), [
             'decision' => 'changes_requested',
             'note' => 'Too late.',
         ]);
@@ -169,7 +169,45 @@ class PhaseReviewTest extends TestCase
         $response->assertNotFound();
     }
 
-    public function test_author_can_resubmit_after_changes_requested_and_it_goes_back_to_pending()
+    public function test_resolve_endpoint_cannot_close_a_request_that_has_a_reviewer()
+    {
+        $manager = User::factory()->create();
+        $project = Project::factory()->create();
+        ProjectMember::factory()->for($project)->for($manager)->manager()->create();
+        $reviewer = User::factory()->create();
+        ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
+        $phase = ProjectPhase::factory()->for($project)->create();
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create();
+
+        $response = $this->actingAs($manager)->patch(route('projects.phases.activities.resolve', [$project, $phase, $request]));
+
+        $response->assertNotFound();
+        $this->assertSame('open', $request->fresh()->activity_status->value);
+    }
+
+    public function test_manager_can_reopen_a_reviewer_approved_request()
+    {
+        $manager = User::factory()->create();
+        $project = Project::factory()->create();
+        ProjectMember::factory()->for($project)->for($manager)->manager()->create();
+        $reviewer = User::factory()->create();
+        ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
+        $phase = ProjectPhase::factory()->for($project)->create();
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
+            'activity_status' => 'resolved',
+            'resolved_at' => now(),
+            'resolved_by' => $reviewer->id,
+        ]);
+
+        $response = $this->actingAs($manager)->patch(route('projects.phases.activities.resolve', [$project, $phase, $request]));
+
+        $response->assertSessionHasNoErrors();
+        $request->refresh();
+        $this->assertSame('open', $request->activity_status->value);
+        $this->assertNull($request->resolved_at);
+    }
+
+    public function test_author_can_resubmit_after_changes_requested_and_it_goes_back_to_open()
     {
         $author = User::factory()->create();
         $project = Project::factory()->create();
@@ -177,15 +215,15 @@ class PhaseReviewTest extends TestCase
         $reviewer = User::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
             'user_id' => $author->id,
-            'review_status' => 'changes_requested',
+            'activity_status' => 'changes_requested',
         ]);
 
-        $response = $this->actingAs($author)->post(route('projects.phases.activities.resubmit', [$project, $phase, $review]));
+        $response = $this->actingAs($author)->post(route('projects.phases.activities.resubmit', [$project, $phase, $request]));
 
         $response->assertSessionHasNoErrors();
-        $this->assertSame('pending', $review->fresh()->review_status->value);
+        $this->assertSame('open', $request->fresh()->activity_status->value);
     }
 
     public function test_only_author_or_manager_can_resubmit()
@@ -198,12 +236,12 @@ class PhaseReviewTest extends TestCase
         $reviewer = User::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
             'user_id' => $author->id,
-            'review_status' => 'changes_requested',
+            'activity_status' => 'changes_requested',
         ]);
 
-        $response = $this->actingAs($bystander)->post(route('projects.phases.activities.resubmit', [$project, $phase, $review]));
+        $response = $this->actingAs($bystander)->post(route('projects.phases.activities.resubmit', [$project, $phase, $request]));
 
         $response->assertForbidden();
     }
@@ -216,25 +254,25 @@ class PhaseReviewTest extends TestCase
         $reviewer = User::factory()->create();
         ProjectMember::factory()->for($project)->for($reviewer)->viewer()->create();
         $phase = ProjectPhase::factory()->for($project)->create();
-        $review = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
+        $request = PhaseActivity::factory()->for($phase, 'projectPhase')->review($reviewer)->create([
             'user_id' => $author->id,
-            'review_status' => 'pending',
+            'activity_status' => 'open',
         ]);
 
-        $response = $this->actingAs($author)->post(route('projects.phases.activities.resubmit', [$project, $phase, $review]));
+        $response = $this->actingAs($author)->post(route('projects.phases.activities.resubmit', [$project, $phase, $request]));
 
         $response->assertNotFound();
     }
 
-    public function test_a_review_from_another_project_is_not_reachable_through_a_different_project()
+    public function test_a_request_from_another_project_is_not_reachable_through_a_different_project()
     {
         $user = User::factory()->create();
         $project = Project::factory()->for($user, 'owner')->create();
         $otherProject = Project::factory()->create();
         $otherPhase = ProjectPhase::factory()->for($otherProject)->create();
-        $otherReview = PhaseActivity::factory()->for($otherPhase, 'projectPhase')->review()->create();
+        $otherRequest = PhaseActivity::factory()->for($otherPhase, 'projectPhase')->review()->create();
 
-        $response = $this->actingAs($user)->patch(route('projects.phases.activities.decide', [$project, $otherPhase, $otherReview]), [
+        $response = $this->actingAs($user)->patch(route('projects.phases.activities.decide', [$project, $otherPhase, $otherRequest]), [
             'decision' => 'approved',
         ]);
 

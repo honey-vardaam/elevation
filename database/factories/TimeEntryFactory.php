@@ -32,6 +32,11 @@ class TimeEntryFactory extends Factory
 
     public function running(): static
     {
-        return $this->state(fn () => ['ended_at' => null]);
+        return $this->state(fn () => ['ended_at' => null, 'paused_at' => null]);
+    }
+
+    public function paused(): static
+    {
+        return $this->state(fn () => ['ended_at' => null, 'paused_at' => now()]);
     }
 }

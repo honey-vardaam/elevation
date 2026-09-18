@@ -34,7 +34,16 @@ export type ActiveTimeEntry = {
     id: number;
     task: string;
     started_at: string;
+    paused_at: string | null;
     project: { id: number; name: string };
+};
+
+export type RecentTimeEntry = {
+    id: number;
+    task: string;
+    project: { id: number; name: string };
+    ended_at: string;
+    duration_seconds: number;
 };
 
 export type TaskItem = {
@@ -49,6 +58,13 @@ export type AllottedProject = {
     name: string;
     status: ProjectStatus;
     members: { id: number; name: string }[];
+};
+
+export type WeeklyHours = {
+    days: { date: string; label: string; hours: number }[];
+    total: number;
+    weeksAgo: number;
+    rangeLabel: string;
 };
 
 export type WeeklyActivityDay = {

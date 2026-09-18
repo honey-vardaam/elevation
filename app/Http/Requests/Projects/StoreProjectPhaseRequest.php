@@ -26,7 +26,7 @@ class StoreProjectPhaseRequest extends FormRequest
             'phase_template_id' => [
                 'required',
                 'integer',
-                'exists:phase_templates,id',
+                Rule::exists('phase_templates', 'id')->where('phase_flow_template_id', $project->phase_flow_template_id),
                 Rule::unique('project_phases')->where(fn ($query) => $query->where('project_id', $project->id)),
             ],
         ];

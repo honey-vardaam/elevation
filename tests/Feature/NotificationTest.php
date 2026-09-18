@@ -17,7 +17,7 @@ class NotificationTest extends TestCase
     {
         $user = User::factory()->create();
         $phase = ProjectPhase::factory()->for(Project::factory())->create();
-        $user->notify(new PhaseActivityNotification($phase, User::factory()->create(), 'Test message.'));
+        $user->notify(new PhaseActivityNotification($phase, User::factory()->create(), 'Test message.', 'comment'));
         $notification = $user->notifications()->sole();
 
         $response = $this->actingAs($user)->patch(route('notifications.read', $notification));
@@ -30,7 +30,7 @@ class NotificationTest extends TestCase
     {
         $owner = User::factory()->create();
         $phase = ProjectPhase::factory()->for(Project::factory())->create();
-        $owner->notify(new PhaseActivityNotification($phase, User::factory()->create(), 'Test message.'));
+        $owner->notify(new PhaseActivityNotification($phase, User::factory()->create(), 'Test message.', 'comment'));
         $notification = $owner->notifications()->sole();
 
         $outsider = User::factory()->create();
@@ -46,12 +46,30 @@ class NotificationTest extends TestCase
         $user = User::factory()->create();
         $phase = ProjectPhase::factory()->for(Project::factory())->create();
         $actor = User::factory()->create();
-        $user->notify(new PhaseActivityNotification($phase, $actor, 'First.'));
-        $user->notify(new PhaseActivityNotification($phase, $actor, 'Second.'));
+        $user->notify(new PhaseActivityNotification($phase, $actor, 'First.', 'comment'));
+        $user->notify(new PhaseActivityNotification($phase, $actor, 'Second.', 'comment'));
 
         $response = $this->actingAs($user)->post(route('notifications.read-all'));
 
         $response->assertSessionHasNoErrors();
         $this->assertCount(0, $user->fresh()->unreadNotifications);
+    }
+
+    public function test_a_user_can_clear_all_of_their_notifications()
+    {
+        $user = User::factory()->create();
+        $phase = ProjectPhase::factory()->for(Project::factory())->create();
+        $actor = User::factory()->create();
+        $user->notify(new PhaseActivityNotification($phase, $actor, 'First.', 'comment'));
+        $user->notify(new PhaseActivityNotification($phase, $actor, 'Second.', 'comment'));
+
+        $otherUser = User::factory()->create();
+        $otherUser->notify(new PhaseActivityNotification($phase, $actor, 'Someone else\'s.', 'comment'));
+
+        $response = $this->actingAs($user)->delete(route('notifications.clear-all'));
+
+        $response->assertSessionHasNoErrors();
+        $this->assertCount(0, $user->fresh()->notifications);
+        $this->assertCount(1, $otherUser->fresh()->notifications);
     }
 }

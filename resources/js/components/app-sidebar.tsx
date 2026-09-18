@@ -3,9 +3,11 @@ import {
     CalendarDays,
     Contact,
     FolderKanban,
+    GitCompareArrows,
     Inbox,
     LayoutGrid,
     LayoutTemplate,
+    Palette,
     Settings2,
     Users,
 } from 'lucide-react';
@@ -26,9 +28,12 @@ import { dashboard } from '@/routes';
 import { edit as editAppearance } from '@/routes/appearance';
 import { index as calendarIndex } from '@/routes/calendar';
 import { index as clientsIndex } from '@/routes/clients';
+import { index as comparisonsIndex } from '@/routes/comparisons';
 import { edit as editCompany } from '@/routes/company';
+import { index as defaultFolderTemplatesIndex } from '@/routes/default-folder-templates';
 import { index as inboxIndex } from '@/routes/inbox';
-import { index as phaseTemplatesIndex } from '@/routes/phase-templates';
+import { index as moodboardsIndex } from '@/routes/moodboards';
+import { index as phaseFlowTemplatesIndex } from '@/routes/phase-flow-templates';
 import { index as portfoliosIndex } from '@/routes/portfolios';
 import { edit as editProfile } from '@/routes/profile';
 import { index as projectsIndex } from '@/routes/projects';
@@ -37,7 +42,10 @@ import { index as teamsIndex } from '@/routes/teams';
 import { index as usersIndex } from '@/routes/users';
 import type { NavItem } from '@/types';
 
-function buildMainNavItems(isOwner: boolean): NavItem[] {
+function buildMainNavItems(
+    isOwner: boolean,
+    unreadNotificationsCount: number = 0,
+): NavItem[] {
     return [
         {
             title: 'Dashboard',
@@ -55,9 +63,25 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
             icon: CalendarDays,
         },
         {
+            title: 'Moodboards',
+            href: moodboardsIndex(),
+            icon: Palette,
+        },
+        {
+            title: 'Smart Comparison',
+            href: comparisonsIndex(),
+            icon: GitCompareArrows,
+        },
+        {
             title: 'Inbox',
             href: inboxIndex(),
             icon: Inbox,
+            badge:
+                unreadNotificationsCount > 0
+                    ? unreadNotificationsCount > 99
+                        ? '99+'
+                        : unreadNotificationsCount
+                    : null,
         },
         ...(isOwner
             ? [
@@ -93,8 +117,12 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
                               href: editCompany(),
                           },
                           {
-                              title: 'Project Setup',
-                              href: phaseTemplatesIndex(),
+                              title: 'Default Folders',
+                              href: defaultFolderTemplatesIndex(),
+                          },
+                          {
+                              title: 'Phase Flows',
+                              href: phaseFlowTemplatesIndex(),
                           },
                           {
                               title: 'Teams',
@@ -108,8 +136,12 @@ function buildMainNavItems(isOwner: boolean): NavItem[] {
 }
 
 export function AppSidebar() {
-    const { auth } = usePage().props;
-    const mainNavItems = buildMainNavItems(auth.user.role === 'owner');
+    const { auth, notifications } = usePage().props;
+    const unreadNotificationsCount = notifications?.unread_count ?? 0;
+    const mainNavItems = buildMainNavItems(
+        auth.user.role === 'owner',
+        unreadNotificationsCount,
+    );
 
     return (
         <Sidebar collapsible="icon">

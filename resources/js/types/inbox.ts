@@ -6,6 +6,7 @@ export type ConversationSummary = {
     phase_status: ProjectPhaseStatus;
     project: { id: number; name: string };
     open_change_requests_count: number;
+    pending_review_for_me: boolean;
     last_activity: {
         author_name: string;
         preview: string;

@@ -8,20 +8,20 @@ export function FolderBreadcrumb({
     projectId,
     view,
     trail,
-    activePhaseId,
+    phaseId,
 }: {
     projectId: number;
     view: 'grid' | 'list';
     trail: ProjectFolderSummary[];
-    activePhaseId: number | null;
+    phaseId?: number | null;
 }) {
     function url(folderId?: number): string {
         const params = new URLSearchParams({ view });
         if (folderId) {
             params.set('folder', String(folderId));
         }
-        if (activePhaseId) {
-            params.set('panel', String(activePhaseId));
+        if (phaseId) {
+            params.set('phase', String(phaseId));
         }
 
         return `${show(projectId).url}?${params.toString()}`;

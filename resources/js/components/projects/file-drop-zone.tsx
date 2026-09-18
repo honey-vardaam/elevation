@@ -44,6 +44,7 @@ export function FileDropZone({
             router.post(store(projectId).url, formData, {
                 forceFormData: true,
                 preserveScroll: true,
+                preserveState: true,
                 onError: (errors) => {
                     toast.error(
                         `${next.name}: ${Object.values(errors)[0] ?? 'Upload failed.'}`,

@@ -15,13 +15,14 @@ use Illuminate\Support\Carbon;
  * @property int $project_id
  * @property string $task
  * @property Carbon $started_at
+ * @property Carbon|null $paused_at
  * @property Carbon|null $ended_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User $user
  * @property-read Project $project
  */
-#[Fillable(['task', 'started_at', 'ended_at'])]
+#[Fillable(['task', 'started_at', 'paused_at', 'ended_at'])]
 class TimeEntry extends Model
 {
     /** @use HasFactory<TimeEntryFactory> */
@@ -34,6 +35,7 @@ class TimeEntry extends Model
     {
         return [
             'started_at' => 'datetime',
+            'paused_at' => 'datetime',
             'ended_at' => 'datetime',
         ];
     }
@@ -50,11 +52,18 @@ class TimeEntry extends Model
 
     public function isRunning(): bool
     {
-        return $this->ended_at === null;
+        return $this->ended_at === null && $this->paused_at === null;
+    }
+
+    public function isPaused(): bool
+    {
+        return $this->ended_at === null && $this->paused_at !== null;
     }
 
     public function durationInSeconds(): int
     {
-        return abs($this->started_at->diffInSeconds($this->ended_at ?? now()));
+        $countedUntil = $this->paused_at ?? $this->ended_at ?? now();
+
+        return abs($this->started_at->diffInSeconds($countedUntil));
     }
 }

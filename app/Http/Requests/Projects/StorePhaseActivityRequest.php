@@ -34,7 +34,7 @@ class StorePhaseActivityRequest extends FormRequest
         $project = $phase->project;
 
         return [
-            'type' => ['required', Rule::in(['comment', 'change_request', 'review', 'approval'])],
+            'type' => ['required', Rule::in(['comment', 'change_request', 'approval'])],
             'body' => [$this->input('type') === 'approval' ? 'nullable' : 'required', 'string', 'max:5000'],
             'parent_id' => [
                 'nullable',
@@ -43,7 +43,7 @@ class StorePhaseActivityRequest extends FormRequest
             ],
             'reviewer_id' => [
                 'nullable',
-                Rule::requiredIf($this->input('type') === 'review'),
+                'prohibited_unless:type,change_request',
                 'integer',
                 function (string $attribute, mixed $value, \Closure $fail) use ($project) {
                     $hasAccess = $value === $project->owner_id
@@ -54,7 +54,13 @@ class StorePhaseActivityRequest extends FormRequest
                     }
                 },
             ],
-            'attachment' => ['nullable', 'file', 'max:102400'],
+            'attachment' => ['nullable', 'file', 'max:102400', 'prohibits:attachment_id'],
+            'attachment_id' => [
+                'nullable',
+                'integer',
+                'prohibits:attachment',
+                Rule::exists('project_files', 'id')->where('project_id', $project->id),
+            ],
         ];
     }
 }

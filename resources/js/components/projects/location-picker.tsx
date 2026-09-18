@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useState } from 'react';
 import {
     MapContainer,
     Marker,
@@ -61,9 +61,7 @@ export function LocationPicker({
     const [searchError, setSearchError] = useState<string | null>(null);
     const [flyTo, setFlyTo] = useState<[number, number] | null>(null);
 
-    async function handleSearch(event: FormEvent) {
-        event.preventDefault();
-
+    async function handleSearch() {
         const trimmed = query.trim();
         if (!trimmed) {
             return;
@@ -104,7 +102,11 @@ export function LocationPicker({
 
     return (
         <div className="space-y-2">
-            <form onSubmit={handleSearch} className="flex gap-2">
+            {/* Not a <form>: this picker is always embedded inside the
+                project form, and nested forms are invalid HTML - the browser
+                drops the inner one, so a submit button here would silently
+                submit (and close) the outer dialog instead of searching. */}
+            <div className="flex gap-2">
                 <div className="relative flex-1">
                     <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
                     <Input
@@ -113,18 +115,25 @@ export function LocationPicker({
                             setQuery(e.target.value);
                             setSearchError(null);
                         }}
+                        onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                handleSearch();
+                            }
+                        }}
                         placeholder="Search for an address or place…"
                         className="pl-8"
                     />
                 </div>
                 <Button
-                    type="submit"
+                    type="button"
                     variant="secondary"
+                    onClick={handleSearch}
                     disabled={searching || !query.trim()}
                 >
                     {searching ? <Spinner /> : 'Search'}
                 </Button>
-            </form>
+            </div>
 
             {searchError && (
                 <p className="text-destructive text-xs">{searchError}</p>

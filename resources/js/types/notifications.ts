@@ -1,3 +1,9 @@
+export type NotificationType =
+    | 'comment'
+    | 'change_request'
+    | 'review'
+    | 'approved';
+
 export type NotificationItem = {
     id: string;
     read_at: string | null;
@@ -8,6 +14,7 @@ export type NotificationItem = {
     phase_name: string;
     actor_name: string;
     message: string;
+    type: NotificationType;
 };
 
 export type NotificationsPayload = {

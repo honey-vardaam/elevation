@@ -33,9 +33,40 @@ class TimeTrackerController extends Controller
     {
         Gate::authorize('update', $timeEntry);
 
-        abort_unless($timeEntry->isRunning(), 404);
+        abort_unless($timeEntry->ended_at === null, 404);
 
         $timeEntry->ended_at = now();
+        $timeEntry->save();
+
+        return back();
+    }
+
+    public function pause(Request $request, TimeEntry $timeEntry): RedirectResponse
+    {
+        Gate::authorize('update', $timeEntry);
+
+        abort_unless($timeEntry->isRunning(), 404);
+
+        $timeEntry->paused_at = now();
+        $timeEntry->save();
+
+        return back();
+    }
+
+    /**
+     * Resume a paused entry by shifting its start time forward by however
+     * long it sat paused, so the elapsed time it reports keeps excluding
+     * that gap rather than needing a separate accumulated-duration field.
+     */
+    public function resume(Request $request, TimeEntry $timeEntry): RedirectResponse
+    {
+        Gate::authorize('update', $timeEntry);
+
+        abort_unless($timeEntry->isPaused(), 404);
+
+        $pausedSeconds = $timeEntry->paused_at->diffInSeconds(now());
+        $timeEntry->started_at = $timeEntry->started_at->addSeconds($pausedSeconds);
+        $timeEntry->paused_at = null;
         $timeEntry->save();
 
         return back();

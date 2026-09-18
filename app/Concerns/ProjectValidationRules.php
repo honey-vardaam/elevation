@@ -12,12 +12,16 @@ trait ProjectValidationRules
     /**
      * Get the validation rules used to validate projects.
      *
+     * $partial allows callers (like a status-only update) to send just the
+     * fields they're changing instead of the whole project form - fields are
+     * still required if present, just not required to be present at all.
+     *
      * @return array<string, array<int, ValidationRule|array<mixed>|string>>
      */
-    protected function projectRules(): array
+    protected function projectRules(bool $partial = false): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [...($partial ? ['sometimes'] : []), 'required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'banner' => ['nullable', 'image', 'max:5120'],
             'banner_focal_x' => ['nullable', 'numeric', 'between:0,100'],

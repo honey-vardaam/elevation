@@ -4,6 +4,7 @@ import InputError from '@/components/input-error';
 import { Field } from '@/components/field';
 import { BannerAdjuster } from '@/components/projects/banner-adjuster';
 import { LocationPicker } from '@/components/projects/location-picker';
+import { ProjectStatusSelect } from '@/components/projects/project-status-select';
 import { ProjectTypeSelect } from '@/components/projects/project-type-select';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,15 +18,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { update } from '@/routes/projects';
-import type { ProjectDetailFields, ProjectType } from '@/types';
+import type { ProjectDetailFields, ProjectStatus, ProjectType } from '@/types';
 
 type FormData = {
     name: string;
     description: string;
+    status: ProjectStatus;
     type: ProjectType | 'none';
+    client_name: string;
+    client_email: string;
+    client_phone: string;
+    site_address: string;
     site_area: string;
     latitude: number | null;
     longitude: number | null;
+    start_date: string;
+    end_date: string;
     banner: File | null;
     banner_focal_x: number;
     banner_focal_y: number;
@@ -37,10 +45,17 @@ function formDataFrom(project: ProjectDetailFields): FormData {
     return {
         name: project.name,
         description: project.description ?? '',
+        status: project.status,
         type: project.type ?? 'none',
+        client_name: project.client_name ?? '',
+        client_email: project.client_email ?? '',
+        client_phone: project.client_phone ?? '',
+        site_address: project.site_address ?? '',
         site_area: project.site_area === null ? '' : String(project.site_area),
         latitude: project.latitude,
         longitude: project.longitude,
+        start_date: project.start_date ?? '',
+        end_date: project.end_date ?? '',
         banner: null,
         banner_focal_x: project.banner_focal_x,
         banner_focal_y: project.banner_focal_y,
@@ -71,10 +86,17 @@ export function EditProjectDialog({
             : {
                   name: '',
                   description: '',
+                  status: 'ongoing',
                   type: 'none',
+                  client_name: '',
+                  client_email: '',
+                  client_phone: '',
+                  site_address: '',
                   site_area: '',
                   latitude: null,
                   longitude: null,
+                  start_date: '',
+                  end_date: '',
                   banner: null,
                   banner_focal_x: 50,
                   banner_focal_y: 50,
@@ -148,7 +170,7 @@ export function EditProjectDialog({
             open={project !== null}
             onOpenChange={(open) => !open && onOpenChange(false)}
         >
-            <DialogContent className="flex max-h-[85vh] w-full flex-col sm:max-w-xl">
+            <DialogContent className="flex max-h-[85vh] w-full flex-col sm:max-w-2xl">
                 <DialogTitle>Edit project</DialogTitle>
                 {project && (
                     <form
@@ -236,6 +258,19 @@ export function EditProjectDialog({
                         </Field>
                         <div className="grid grid-cols-2 gap-4">
                             <Field
+                                htmlFor="edit-project-status"
+                                label="Status"
+                                error={errors.status}
+                            >
+                                <ProjectStatusSelect
+                                    value={data.status}
+                                    onValueChange={(status) =>
+                                        setData('status', status)
+                                    }
+                                    className="w-full"
+                                />
+                            </Field>
+                            <Field
                                 htmlFor="edit-project-type"
                                 label="Type"
                                 error={errors.type}
@@ -245,25 +280,136 @@ export function EditProjectDialog({
                                     onValueChange={(type) =>
                                         setData('type', type)
                                     }
+                                    className="w-full"
                                 />
                             </Field>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                             <Field
-                                htmlFor="edit-project-site-area"
-                                label="Site area (sq ft)"
-                                error={errors.site_area}
+                                htmlFor="edit-project-start-date"
+                                label="Start date"
+                                error={errors.start_date}
                             >
                                 <Input
-                                    id="edit-project-site-area"
-                                    type="number"
-                                    min="0"
-                                    step="any"
-                                    placeholder="3,200"
-                                    value={data.site_area}
+                                    id="edit-project-start-date"
+                                    type="date"
+                                    value={data.start_date}
                                     onChange={(e) =>
-                                        setData('site_area', e.target.value)
+                                        setData('start_date', e.target.value)
                                     }
                                 />
                             </Field>
+                            <Field
+                                htmlFor="edit-project-end-date"
+                                label="End date"
+                                error={errors.end_date}
+                            >
+                                <Input
+                                    id="edit-project-end-date"
+                                    type="date"
+                                    value={data.end_date}
+                                    onChange={(e) =>
+                                        setData('end_date', e.target.value)
+                                    }
+                                />
+                            </Field>
+                        </div>
+                        <div className="space-y-4">
+                            <Label>Client details (optional)</Label>
+                            <Field
+                                label="Client name"
+                                error={errors.client_name}
+                            >
+                                <Input
+                                    aria-label="Client name"
+                                    placeholder="The Whitfield Family"
+                                    value={data.client_name}
+                                    onChange={(e) =>
+                                        setData('client_name', e.target.value)
+                                    }
+                                />
+                            </Field>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    label="Client email"
+                                    error={errors.client_email}
+                                >
+                                    <Input
+                                        aria-label="Client email"
+                                        type="email"
+                                        placeholder="client@example.com"
+                                        value={data.client_email}
+                                        onChange={(e) =>
+                                            setData(
+                                                'client_email',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                </Field>
+                                <Field
+                                    label="Client phone"
+                                    error={errors.client_phone}
+                                >
+                                    <Input
+                                        aria-label="Client phone"
+                                        placeholder="555-0142"
+                                        value={data.client_phone}
+                                        onChange={(e) =>
+                                            setData(
+                                                'client_phone',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                </Field>
+                            </div>
+                        </div>
+                        <div className="space-y-4">
+                            <Label>Site details (optional)</Label>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Field
+                                    label="Site address"
+                                    error={errors.site_address}
+                                >
+                                    <Input
+                                        aria-label="Site address"
+                                        placeholder="12 Harborview Lane"
+                                        value={data.site_address}
+                                        onChange={(e) =>
+                                            setData(
+                                                'site_address',
+                                                e.target.value,
+                                            )
+                                        }
+                                    />
+                                </Field>
+                                <Field
+                                    label="Site area"
+                                    error={errors.site_area}
+                                >
+                                    <div className="relative">
+                                        <Input
+                                            aria-label="Site area"
+                                            type="number"
+                                            min="0"
+                                            step="any"
+                                            placeholder="3,200"
+                                            className="pr-14"
+                                            value={data.site_area}
+                                            onChange={(e) =>
+                                                setData(
+                                                    'site_area',
+                                                    e.target.value,
+                                                )
+                                            }
+                                        />
+                                        <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm">
+                                            sq ft
+                                        </span>
+                                    </div>
+                                </Field>
+                            </div>
                         </div>
                         <div className="grid gap-2">
                             <Label>Pin location (optional)</Label>

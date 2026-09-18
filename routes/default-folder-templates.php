@@ -4,6 +4,7 @@ use App\Http\Controllers\Settings\DefaultFolderTemplateController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('settings/default-folder-templates', [DefaultFolderTemplateController::class, 'index'])->name('default-folder-templates.index');
     Route::post('settings/default-folder-templates', [DefaultFolderTemplateController::class, 'store'])->name('default-folder-templates.store');
     Route::post('settings/default-folder-templates/reorder', [DefaultFolderTemplateController::class, 'reorder'])->name('default-folder-templates.reorder');
     Route::patch('settings/default-folder-templates/{defaultFolderTemplate}', [DefaultFolderTemplateController::class, 'update'])->name('default-folder-templates.update');

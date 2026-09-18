@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ActivityStatus;
 use App\Enums\PhaseActivityType;
 use App\Enums\ProjectPhaseStatus;
 use Database\Factories\ProjectPhaseFactory;
@@ -78,7 +79,7 @@ class ProjectPhase extends Model
     {
         return $this->activities()
             ->where('type', PhaseActivityType::ChangeRequest)
-            ->whereNull('resolved_at')
+            ->where('activity_status', '!=', ActivityStatus::Resolved)
             ->count();
     }
 

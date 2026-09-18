@@ -46,31 +46,17 @@ class CalendarController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'status', 'start_date', 'end_date']);
 
-        $daysInMonth = $monthStart->daysInMonth;
-
         $projectTimeline = $accessibleProjects
             ->filter(fn (Project $project) => $project->start_date !== null
                 && $project->start_date->lte($monthEnd)
                 && ($project->end_date === null || $project->end_date->gte($monthStart)))
-            ->map(function (Project $project) use ($monthStart, $monthEnd, $daysInMonth) {
-                $barStart = $project->start_date->lt($monthStart) ? $monthStart->copy() : $project->start_date->copy();
-                $barEnd = ($project->end_date === null || $project->end_date->gt($monthEnd))
-                    ? $monthEnd->copy()
-                    : $project->end_date->copy();
-
-                $startOffsetDays = $monthStart->diffInDays($barStart);
-                $spanDays = $barStart->diffInDays($barEnd) + 1;
-
-                return [
-                    'id' => $project->id,
-                    'name' => $project->name,
-                    'status' => $project->status->value,
-                    'start_date' => $project->start_date->toDateString(),
-                    'end_date' => $project->end_date?->toDateString(),
-                    'start_offset_pct' => round($startOffsetDays / $daysInMonth * 100, 2),
-                    'width_pct' => round($spanDays / $daysInMonth * 100, 2),
-                ];
-            })
+            ->map(fn (Project $project) => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'status' => $project->status->value,
+                'start_date' => $project->start_date->toDateString(),
+                'end_date' => $project->end_date?->toDateString(),
+            ])
             ->values();
 
         return Inertia::render('calendar/index', [

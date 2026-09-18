@@ -9,6 +9,7 @@ import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarMenu,
+    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarMenuSub,
@@ -73,13 +74,22 @@ export function NavMain({ items }: { items: NavItem[] }) {
                             <SidebarMenuButton
                                 asChild
                                 isActive={isCurrentUrl(item.href)}
-                                tooltip={item.title}
+                                tooltip={
+                                    item.badge != null && item.badge !== ''
+                                        ? `${item.title} (${item.badge})`
+                                        : item.title
+                                }
                             >
                                 <Link href={item.href} prefetch>
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>
                             </SidebarMenuButton>
+                            {item.badge != null && item.badge !== '' && (
+                                <SidebarMenuBadge>
+                                    {item.badge}
+                                </SidebarMenuBadge>
+                            )}
                         </SidebarMenuItem>
                     ),
                 )}
